@@ -1,4 +1,4 @@
-|pypi| |build status| |pyver| |hclicore| |huckle| |hai|
+|pypi| |pyver| |hclicore| |huckle| |hai|
 
 Hello
 =====
@@ -82,8 +82,6 @@ Bugs
 
 - TBD
 
-.. |build status| image:: https://circleci.com/gh/cometaj2/hello.svg?style=shield
-   :target: https://circleci.com/gh/cometaj2/hello
 .. |pypi| image:: https://img.shields.io/pypi/v/hello?label=hello
    :target: https://pypi.org/project/hello
 .. |pyver| image:: https://img.shields.io/pypi/pyversions/hello.svg
