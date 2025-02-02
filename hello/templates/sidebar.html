@@ -1,0 +1,35 @@
+<div class="hover-trigger">Hello</div>
+<div class="sidebar">
+    <div class="sidebar-header">
+        <form action="/new_chat" method="POST" class="new-chat-form">
+            <button type="submit" class="new-chat-button">+ New Chat</button>
+        </form>
+    </div>
+    <div class="sidebar-divider"></div>
+    <span class="sidebar-title">Recent Chats</span>
+    <ul class="chat-list">
+        {% for chat in chats[:10] %}
+        <li class="chat-item" onclick="window.location.href='/context/{{ chat.context_id }}'">
+            <div class="chat-item-content">
+                <span class="chat-item-name">{{ chat.name }}</span>
+                <span class="chat-item-title">{{ chat.title }}</span>
+            </div>
+            <button 
+                class="delete-button" 
+                onclick="event.stopPropagation(); deleteContext('{{ chat.context_id }}')"
+                title="Delete chat"
+            >×</button>
+        </li>
+        {% endfor %}
+        <a href="/chat_history" class="view-all">View All</a>
+    </ul>
+    <div class="model-section">
+        <form action="/set_model" method="POST">
+            <select name="model" class="model-selector" onchange="this.form.submit()">
+            {%- for model_name in models -%}
+                <option value="{{ model_name }}" {{ 'selected' if model_name == model }}>{{ model_name }}</option>
+            {%- endfor -%}
+            </select>
+        </form>
+    </div>
+</div>

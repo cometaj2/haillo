@@ -1,0 +1,102 @@
+Metadata-Version: 2.2
+Name: hello
+Version: 0.1.0
+Summary: Hello is a WebUI for hai (hcli_hai), the command line AI HCLI chat application.
+Author-email: Jeff Michaud <cometaj2@proton.me>
+License: MIT
+Project-URL: Homepage, https://github.com/cometaj2/hello
+Keywords: web,ui,cli,client,server,connector,hypermedia,rest,generic,development
+Classifier: Development Status :: 4 - Beta
+Classifier: Intended Audience :: Developers
+Classifier: Topic :: Software Development
+Classifier: License :: OSI Approved :: MIT License
+Classifier: Programming Language :: Python :: 3.8
+Classifier: Programming Language :: Python :: 3.9
+Classifier: Programming Language :: Python :: 3.10
+Classifier: Programming Language :: Python :: 3.11
+Classifier: Programming Language :: Python :: 3.12
+Description-Content-Type: text/x-rst
+License-File: LICENSE.txt
+Requires-Dist: flask==3.0.1
+Requires-Dist: huckle==5.5.4
+Requires-Dist: hcli_hai>=2.1.3
+
+|pypi|_ |build status|_ |pyver|_
+
+Hello
+=====
+
+Hello is a WebUI for hai (hcli_hai), the command line AI HCLI chat application.
+
+----
+
+Leggi is a State Legislation Inspector that sorts through legislation hearings and legislation information to provide quick links and access to useful information.
+
+Leggi is able to work with an the hleg HCLI service to periodically refresh state legislature information.
+
+Help shape HCLI and it's ecosystem by raising issues on github!
+
+[1] http://hcli.io
+
+Related HCLI Projects
+---------------------
+
+- hcli-hai, HCLI hleg is a pypi wrapper that contains an HCLI sample application (hleg); hleg is a legislature bill aggregation service that helps facilitate rapid action by providing a useful list of bills on a timeline alongside links to facilitate testifying (e.g. online testimony).
+
+Installation
+------------
+
+hello requires a supported version of Python and pip.
+
+You'll need an WSGI compliant application server to run hello. For example, you can use Green Unicorn (https://gunicorn.org/).
+
+.. code-block:: console
+
+    pip install hello
+    pip install huckle
+    pip install hcli_hai
+    pip install hcli_core
+    pip install gunicorn
+    gunicorn --workers=1 --threads=100 -b 0.0.0.0:10000 "hcli_core:connector(\"`hcli_hai path`\")"
+    huckle cli install localhost:10000
+    gunicorn --preload --workers=4 --threads=100 -b 127.0.0.1:8000 --chdir `hello path` "hello:webapp()"
+
+Usage
+-----
+
+.. code-block:: console
+
+    hello help
+    hcli_hai help
+    huckle help
+    hcli_core help
+    hai help
+
+Versioning
+----------
+
+This project makes use of semantic versioning (http://semver.org) and may make use of the "devx",
+"prealphax", "alphax" "betax", and "rcx" extensions where x is a number (e.g. 0.3.0-prealpha1)
+on github. Only full major.minor.patch releases will be pushed to pip from now on.
+
+Supports
+--------
+
+- Interacting with an hcli_hai (hai HCLI application) backend via the huckle hcli client.
+
+To Do
+-----
+
+- TBD
+
+Bugs
+----
+
+- TBD
+
+.. |build status| image:: https://circleci.com/gh/cometaj2/hello.svg?style=shield
+.. _build status: https://circleci.com/gh/cometaj2/hello
+.. |pypi| image:: https://img.shields.io/pypi/v/hello?label=hello
+.. _pypi: https://pypi.org/project/hello
+.. |pyver| image:: https://img.shields.io/pypi/pyversions/hello.svg
+.. _pyver: https://pypi.org/project/hello
