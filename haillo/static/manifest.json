@@ -1,6 +1,6 @@
 {
-  "name": "Hello",
-  "short_name": "Hello",
+  "name": "Haillo",
+  "short_name": "Haillo",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",

@@ -1,0 +1,33 @@
+.TH HAILLO 1 "FEBRUARY 2025" Linux "User Manuals"
+.SH NAME
+Haillo \- a web frontend for hai (hcli_hai), the command line AI chat application.
+.SH SYNOPSIS
+.B haillo
+[
+.I option
+|
+.I <command>
+]
+.SH DESCRIPTION
+.B haillo
+is a Web Service Gateway Interface (WSGI; PEP 3333) application and progressive web app (PWA) that provides a way to interact with the hai command line chat application.
+.br
+Note that huckle must be setup to interact with hcli_hai for haillo to be able to make use of it (e.g. huckle cli install localhost:10000 (where hcli_hai could be running))
+
+.SH COMMANDS
+.IP "path"
+Provides the installation path of haillo, which can be used to help locate the path of the WSGI app to use in a WSGI server.
+.IP help
+This help file.
+.SH OPTIONS
+.IP --version
+.B haillo
+version and the version of it's dependencies.
+.SH EXAMPLE
+haillo path
+
+haillo --version
+
+haillo run | bash
+
+gunicorn --preload --workers=4 --threads=100 -b 127.0.0.1:8000 --chdir `haillo path` "haillo:webapp()"

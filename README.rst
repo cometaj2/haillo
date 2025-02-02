@@ -1,13 +1,13 @@
 |pypi| |pyver| |hclicore| |huckle| |hai|
 
-Hello
-=====
+Haillo
+======
 
-Hello is a web frontend for hai (hcli_hai), the command line AI chat application.
+Haillo is a web frontend for hai (hcli_hai), the command line AI chat application.
 
 ----
 
-Hello is able to work with the hai HCLI application (hcli_hai) to interact with locally stored ai conversation contexts.
+Haillo is able to work with the hai HCLI application (hcli_hai) to interact with locally stored ai conversation contexts.
 
 Note that a valid Anthropic API key has to be setup for hcli_hai to be usable. see hai help after hooking to it with huckle (see installation instructions below).
 
@@ -34,27 +34,27 @@ Related HCLI Projects
 Installation
 ------------
 
-hello requires a supported version of Python and pip.
+haillo requires a supported version of Python and pip.
 
-You'll need an WSGI compliant application server to run hello. For example, you can use Green Unicorn (https://gunicorn.org/).
+You'll need an WSGI compliant application server to run haillo. For example, you can use Green Unicorn (https://gunicorn.org/).
 
 .. code-block:: console
 
-    pip install hello
+    pip install haillo
     pip install huckle
     pip install hcli_hai
     pip install hcli_core
     pip install gunicorn
     gunicorn --workers=1 --threads=100 -b 0.0.0.0:10000 "hcli_core:connector(\"`hcli_hai path`\")"
     huckle cli install localhost:10000
-    gunicorn --preload --workers=4 --threads=100 -b 127.0.0.1:8000 --chdir `hello path` "hello:webapp()"
+    gunicorn --preload --workers=4 --threads=100 -b 127.0.0.1:8000 --chdir `haillo path` "haillo:webapp()"
 
 Usage
 -----
 
 .. code-block:: console
 
-    hello help
+    haillo help
     hcli_hai help
     huckle help
     hcli_core help
@@ -82,10 +82,10 @@ Bugs
 
 - TBD
 
-.. |pypi| image:: https://img.shields.io/pypi/v/hello?label=hello
-   :target: https://pypi.org/project/hello
-.. |pyver| image:: https://img.shields.io/pypi/pyversions/hello.svg
-   :target: https://pypi.org/project/hello
+.. |pypi| image:: https://img.shields.io/pypi/v/haillo?label=haillo
+   :target: https://pypi.org/project/haillo
+.. |pyver| image:: https://img.shields.io/pypi/pyversions/haillo.svg
+   :target: https://pypi.org/project/haillo
 .. |hclicore| image:: https://circleci.com/gh/cometaj2/hcli_core.svg?style=shield
    :target: https://circleci.com/gh/cometaj2/hcli_core
 .. |huckle| image:: https://img.shields.io/pypi/v/huckle?label=huckle

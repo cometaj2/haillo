@@ -22,10 +22,10 @@ def main():
             sys.exit(0)
 
         elif sys.argv[1] == "run":
-            print('gunicorn --preload --workers=4 --threads=100 -b 127.0.0.1:8000 --chdir `hello path` "hello:webapp()"')
-#             print('waitress-serve --listen=127.0.0.1:8000 --threads=100 hello:app')
-#             print('gunicorn --workers=1 --threads=100 --timeout=30 --keep-alive=5 --graceful-timeout=10 -b 127.0.0.1:8000 "hello:webapp()"')
-#             print('waitress-serve --max-request-header-size=262144 --clear-untrusted-proxy-headers --listen=127.0.0.1:8000 --channel-timeout=30 --asyncore-use-poll --cleanup-interval=5 hello:app')
+            print('gunicorn --preload --workers=4 --threads=100 -b 127.0.0.1:8000 --chdir `haillo path` "haillo:webapp()"')
+#             print('waitress-serve --listen=127.0.0.1:8000 --threads=100 haillo:app')
+#             print('gunicorn --workers=1 --threads=100 --timeout=30 --keep-alive=5 --graceful-timeout=10 -b 127.0.0.1:8000 "haillo:webapp()"')
+#             print('waitress-serve --max-request-header-size=262144 --clear-untrusted-proxy-headers --listen=127.0.0.1:8000 --channel-timeout=30 --asyncore-use-poll --cleanup-interval=5 haillo:app')
             sys.exit(0)
 
         else:
@@ -56,11 +56,11 @@ def show_dependencies():
         else:
             dependencies += f" {name}"
 
-    print(f"hello/{package.__version__}{dependencies}")
+    print(f"haillo/{package.__version__}{dependencies}")
 
 def help():
     hutils.eprint("for help, use:\n")
-    hutils.eprint("  hello help")
+    hutils.eprint("  haillo help")
     sys.exit(2)
 
 # displays a man page (file) located on a given path
