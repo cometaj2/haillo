@@ -1,3 +1,6 @@
 # Include the license file, manpage data, and sample hclis
-include LICENSE.txt README.rst
-recursive-include leggi/data *
+include LICENSE.txt README.rst requirements.txt
+recursive-include hello/data *
+recursive-include hello/images *
+recursive-include hello/static *
+recursive-include hello/templates *
