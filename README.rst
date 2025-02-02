@@ -86,8 +86,8 @@ Bugs
    :target: https://pypi.org/project/haillo
 .. |pyver| image:: https://img.shields.io/pypi/pyversions/haillo.svg
    :target: https://pypi.org/project/haillo
-.. |hclicore| image:: https://circleci.com/gh/cometaj2/hcli_core.svg?style=shield
-   :target: https://circleci.com/gh/cometaj2/hcli_core
+.. |hclicore| image:: https://img.shields.io/pypi/v/hcli-core?label=hcli-core
+   :target: https://pypi.org/project/hcli-core
 .. |huckle| image:: https://img.shields.io/pypi/v/huckle?label=huckle
    :target: https://pypi.org/project/huckle
 .. |hai| image:: https://img.shields.io/pypi/v/hcli-hc?label=hcli-hai
