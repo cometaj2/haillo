@@ -64,6 +64,8 @@ const observer = new MutationObserver((mutations) => {
         }
     });
 });
+
+// Initialize everything on DOM load
 document.addEventListener('DOMContentLoaded', () => {
     formatCodeBlocks();
     scrollToBottom();
@@ -75,22 +77,21 @@ document.addEventListener('DOMContentLoaded', () => {
         subtree: true
     });
 
-    // Common submit function
-    function submitForm(e) {
-        e.preventDefault();
-        document.querySelector('.loading-indicator').style.display = 'block';  // Ensure indicator shows
-        document.querySelector('#chat-form').submit();
-        setTimeout(scrollToBottom, 100);
-    }
-
     // Handle Send button click
-    document.querySelector('.send-button').addEventListener('click', submitForm);
+    document.querySelector('.send-button').addEventListener('click', function(e) {
+        e.preventDefault();
+        document.querySelector('.loading-indicator').style.display = 'block';
 
-    // Handle Enter key - using same submitForm function
-    document.querySelector('.chat-input').addEventListener('keydown', function(e) {
-        if (e.keyCode === 13 && !e.shiftKey) {
-            e.preventDefault();  // Prevent default here too
-            submitForm(e);
-        }
+        const textarea = document.querySelector('.chat-input');
+        const enterEvent = new KeyboardEvent('keydown', {
+            keyCode: 13,
+            which: 13,
+            code: 'Enter',
+            key: 'Enter',
+            shiftKey: false
+        });
+
+        textarea.dispatchEvent(enterEvent);
+        setTimeout(scrollToBottom, 100);
     });
 });

@@ -144,13 +144,15 @@ body {
     margin-bottom: 20px;
 }
 .loading-indicator {
-    background-color: #f8f9fa;  /* Same as assistant messages */
+    text-align: left;
     padding: 12px 15px;
+    width: fit-content;
+    background-color: #f8f9fa;
     border-radius: 8px;
     margin-bottom: 15px;
-    max-width: 100%;    /* Same as other messages */
-    width: 100%;        /* Full width */
+    min-width: 60px;  /* Added to ensure background covers all dots */
 }
+
 .dot-typing {
     position: relative;
     display: inline-block;
@@ -158,32 +160,54 @@ body {
     height: 10px;
     border-radius: 5px;
     background-color: #666;
-    animation: bounce 0.8s cubic-bezier(0.45, 0, 0.55, 1) infinite;
+    animation: bounce 0.8s infinite;
 }
 
 .dot-typing::before,
-.dot-typing::after,
-.dot-typing {
+.dot-typing::after {
     content: '';
+    position: absolute;
+    top: 0;
     width: 10px;
     height: 10px;
     border-radius: 5px;
     background-color: #666;
 }
 
-.dot-typing {
-    animation: bounce 0.8s infinite;
-}
-
 .dot-typing::before {
+    left: 15px;
     animation: bounce 0.8s infinite 0.2s;
 }
 
 .dot-typing::after {
+    left: 30px;
     animation: bounce 0.8s infinite 0.4s;
 }
 
 @keyframes bounce {
     0%, 100% { transform: translateY(0); }
     50% { transform: translateY(-10px); }
+}
+@keyframes dot-typing {
+    0% {
+        box-shadow: 9984px 0 0 0 #666, 9999px 0 0 0 #666, 10014px 0 0 0 #666;
+    }
+    16.667% {
+        box-shadow: 9984px -10px 0 0 #666, 9999px 0 0 0 #666, 10014px 0 0 0 #666;
+    }
+    33.333% {
+        box-shadow: 9984px 0 0 0 #666, 9999px 0 0 0 #666, 10014px 0 0 0 #666;
+    }
+    50% {
+        box-shadow: 9984px 0 0 0 #666, 9999px -10px 0 0 #666, 10014px 0 0 0 #666;
+    }
+    66.667% {
+        box-shadow: 9984px 0 0 0 #666, 9999px 0 0 0 #666, 10014px 0 0 0 #666;
+    }
+    83.333% {
+        box-shadow: 9984px 0 0 0 #666, 9999px 0 0 0 #666, 10014px -10px 0 0 #666;
+    }
+    100% {
+        box-shadow: 9984px 0 0 0 #666, 9999px 0 0 0 #666, 10014px 0 0 0 #666;
+    }
 }
