@@ -31,7 +31,7 @@ body {
     height: 100vh;
     overflow-y: auto;
     padding: 20px;
-    padding-bottom: 90px; /* Default padding, will be updated by JS */
+    padding-bottom: 100px; /* Default padding, will be updated by JS */
     transition: padding-bottom 0.2s ease;
 }
 
