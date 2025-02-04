@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 - Use the latest version of hcli_hai that defaults to user interaction rather than to json
 - Update dependencies to bracket a range for huckle and hcli_hai
 - Fix context card context id, delete button and update time position
+- Add bouncing ellipsis indicator while request is being processed to avoid submitting again
 
 ## [0.1.2]
 - Fix hcli_core badge in README

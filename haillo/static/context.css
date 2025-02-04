@@ -7,27 +7,39 @@
 body {
     font-family: Arial, sans-serif;
     line-height: 1.6;
+    height: 100vh;
+    overflow: hidden;
+    background-color: #fff;
 }
 
 .container {
     display: flex;
-    min-height: 100vh;
+    height: 100vh;
 }
 
-/* Main content area */
 .main-content {
     flex: 1;
-    padding: 10px 100px 80px 200px;
+    padding: 0 100px 0 200px;
     margin-left: 0;
-    overflow-y: auto;
+    position: relative;
+    height: 100vh;
+    overflow: hidden;
 }
 
-/* Message styles */
+.messages-container {
+    height: calc(100vh - 90px);
+    overflow-y: auto;
+    padding: 20px;
+    padding-bottom: 20px;
+}
+
 .message {
     margin-bottom: 15px;
     padding: 12px 15px;
     border-radius: 8px;
     max-width: 100%;
+    word-wrap: break-word;
+    overflow-wrap: break-word;
 }
 
 .user {
@@ -57,15 +69,15 @@ body {
     word-wrap: break-word;
 }
 
-/* Input area styles */
 .input-container {
     position: fixed;
     bottom: 0;
     left: 200px;
     right: 100px;
-    background-color: #fff;
     padding: 15px 0;
-    z-index: 1000; /* Add this */
+    z-index: 1000;
+    background: linear-gradient(to bottom, rgba(255,255,255,0.9) 0%, rgba(255,255,255,1) 100%);
+    backdrop-filter: blur(5px);
 }
 
 .input-wrapper {
@@ -107,7 +119,6 @@ body {
     padding-top: 5px;
 }
 
-/* Code block styles */
 .message-content pre {
     background-color: #1a1a2e;
     border-radius: 4px;
@@ -135,14 +146,7 @@ body {
     background-color: transparent;
     color: inherit;
 }
-.messages-container {
-    flex-grow: 1;
-    overflow-y: auto;
-    padding: 20px;
-    padding-bottom: 20px;
-    /* Ensure content doesn't go behind input */
-    margin-bottom: 20px;
-}
+
 .loading-indicator {
     background-color: #f8f9fa;
     padding: 12px 15px;
@@ -150,6 +154,8 @@ body {
     margin-bottom: 15px;
     max-width: 100%;
     width: 100%;
+    position: relative;
+    z-index: 1;
 }
 
 .dots {

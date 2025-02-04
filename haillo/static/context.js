@@ -1,15 +1,6 @@
 function scrollToBottom() {
     const messagesContainer = document.querySelector('.messages-container');
-    const inputContainer = document.querySelector('.input-container');
-    const viewportHeight = window.innerHeight;
-
-    // Calculate position to scroll to
-    const scrollPosition = document.body.scrollHeight - viewportHeight + inputContainer.offsetHeight + 100;
-
-    window.scrollTo({
-        top: scrollPosition,
-        behavior: 'smooth'
-    });
+    messagesContainer.scrollTop = messagesContainer.scrollHeight;
 }
 
 function formatCodeBlocks() {
@@ -21,7 +12,6 @@ function formatCodeBlocks() {
             let codeBlock = '';
             let language = '';
             let isInCodeBlock = false;
-
             const lines = content.split('\n');
             for (let i = 0; i < lines.length; i++) {
                 const line = lines[i];
@@ -64,13 +54,14 @@ const observer = new MutationObserver((mutations) => {
         }
     });
 });
+
 document.addEventListener('DOMContentLoaded', () => {
     formatCodeBlocks();
     scrollToBottom();
     document.querySelector(".chat-input").focus();
-
+    
     // Start observing content changes
-    observer.observe(document.querySelector('.main-content'), {
+    observer.observe(document.querySelector('.messages-container'), {
         childList: true,
         subtree: true
     });
@@ -78,7 +69,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // Common submit function
     function submitForm(e) {
         e.preventDefault();
-        document.querySelector('.loading-indicator').style.display = 'block';  // Ensure indicator shows
+        document.querySelector('.loading-indicator').style.display = 'block';
         document.querySelector('#chat-form').submit();
         setTimeout(scrollToBottom, 100);
     }
@@ -86,10 +77,10 @@ document.addEventListener('DOMContentLoaded', () => {
     // Handle Send button click
     document.querySelector('.send-button').addEventListener('click', submitForm);
 
-    // Handle Enter key - using same submitForm function
+    // Handle Enter key
     document.querySelector('.chat-input').addEventListener('keydown', function(e) {
         if (e.keyCode === 13 && !e.shiftKey) {
-            e.preventDefault();  // Prevent default here too
+            e.preventDefault();
             submitForm(e);
         }
     });
