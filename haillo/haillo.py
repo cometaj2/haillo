@@ -11,7 +11,6 @@ import time
 from huckle import cli, stdin
 from flask import Flask, render_template, send_file, jsonify, Response, redirect, url_for, request
 import subprocess
-import shlex
 import ast
 
 logging = logger.Logger()
@@ -22,7 +21,7 @@ app = None
 
 def get_chat_list():
     try:
-        chunks = cli("hai ls")
+        chunks = cli("hai ls --json")
         json_string = ""
         for dest, chunk in chunks:
             if dest == 'stdout':
@@ -63,7 +62,7 @@ def webapp():
     def index():
         try:
             # Get the current context
-            chunks = cli("hai context")
+            chunks = cli("hai context --json")
             context_str = ""
             for dest, chunk in chunks:
                 if dest == 'stdout':
@@ -73,14 +72,17 @@ def webapp():
             chats = get_chat_list()
 
             # Get model in use
-            chunks = cli(f"hai model")
+            chunks = cli(f"hai model --json")
             model = ""
             for dest, chunk in chunks:  # Now unpacking tuple of (dest, chunk)
                 if dest == 'stdout':
                     model += chunk.decode()
 
+            # Convert to a python list
+            model = ast.literal_eval(model)[0]
+
             # Get model in use
-            chunks = cli(f"hai model ls")
+            chunks = cli(f"hai model ls --json")
             models = ""
             for dest, chunk in chunks:  # Now unpacking tuple of (dest, chunk)
                 if dest == 'stdout':
@@ -116,14 +118,17 @@ def webapp():
             chats = get_chat_list()
 
             # Get model in use
-            chunks = cli(f"hai model")
+            chunks = cli(f"hai model --json")
             model = ""
             for dest, chunk in chunks:  # Now unpacking tuple of (dest, chunk)
                 if dest == 'stdout':
                     model += chunk.decode()
 
+            # Convert to a python list
+            model = ast.literal_eval(model)[0]
+
             # Get model in use
-            chunks = cli(f"hai model ls")
+            chunks = cli(f"hai model ls --json")
             models = ""
             for dest, chunk in chunks:  # Now unpacking tuple of (dest, chunk)
                 if dest == 'stdout':

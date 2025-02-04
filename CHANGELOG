@@ -4,6 +4,11 @@ All notable changes to this project will be documented in this file.
 The format is loosely based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/)
 and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 
+## [0.2.0]
+- Use the latest version of hcli_hai that defaults to user interaction rather than to json
+- Update dependencies to bracket a range for huckle and hcli_hai
+- Fix context card context id, delete button and update time position
+
 ## [0.1.2]
 - Fix hcli_core badge in README
 

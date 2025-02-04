@@ -46,7 +46,7 @@
             }
 
             .context-card {
-                display: flex;
+                display: block;
                 justify-content: space-between;
                 align-items: center;
                 padding: 15px;
@@ -69,12 +69,16 @@
 
             .context-info {
                 cursor: pointer;
+                margin-bottom: 20px;
             }
 
             .context-actions {
                 display: flex;
                 align-items: center;
                 gap: 15px;
+                position: absolute;
+                top: 15px;
+                right: 15px;
             }
 
             .context-delete-button {
@@ -107,6 +111,13 @@
                 align-items: baseline;
                 gap: 10px;
                 margin-bottom: 5px;
+                justify-content: space-between;
+            }
+
+            .context-id-name {
+                display: flex;
+                align-items: baseline;
+                gap: 10px;
             }
 
             .context-name {
@@ -128,6 +139,10 @@
                 color: #666;
                 font-size: 0.85em;
                 white-space: nowrap;
+                margin-left: auto;
+                position: absolute;
+                bottom: 15px;
+                right: 15px;
             }
 
             .page-header {
@@ -155,19 +170,21 @@
                         <div class="context-card">
                             <div class="context-info" onclick="window.location.href='/context/{{ chat.context_id }}'">
                                 <div class="context-header">
-                                    <span class="context-name">{{ chat.name }}</span>
-                                    <span class="context-id">#{{ chat.context_id }}</span>
+                                    <div class="context-id-name">
+                                        <span class="context-id">#{{ chat.context_id }}</span>
+                                        <span class="context-name">{{ chat.name }}</span>
+                                    </div>
                                 </div>
                                 <div class="context-title">{{ chat.title }}</div>
                             </div>
                             <div class="context-actions">
-                                <div class="context-time">{{ chat.update_time }}</div>
                                 <button 
                                     class="context-delete-button" 
                                     onclick="event.stopPropagation(); deleteContext('{{ chat.context_id }}')"
                                     title="Delete chat"
                                 >×</button>
                             </div>
+                            <div class="context-time">{{ chat.update_time }}</div>
                         </div>
                         {% endfor %}
                     </div>
