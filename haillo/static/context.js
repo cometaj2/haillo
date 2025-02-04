@@ -39,10 +39,16 @@ function formatCodeBlocks() {
     });
 }
 
-// Auto-resize textarea
+// Auto-resize textarea and adjust messages padding
 document.querySelector('.chat-input').addEventListener('input', function() {
     this.style.height = 'auto';
     this.style.height = (this.scrollHeight) + 'px';
+    
+    // Update messages container padding
+    const inputContainer = document.querySelector('.input-container');
+    const messagesContainer = document.querySelector('.messages-container');
+    const totalInputHeight = inputContainer.offsetHeight + 20; // Add extra padding
+    messagesContainer.style.paddingBottom = `${totalInputHeight}px`;
 });
 
 // Observer for content changes
