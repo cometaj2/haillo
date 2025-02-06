@@ -22,7 +22,7 @@ function formatCodeBlocks() {
                         codeBlock = '';
                     } else {
                         isInCodeBlock = false;
-                        result += `<pre><code class="language-${language || 'plaintext'}">${codeBlock.trim()}</code></pre>\n`;
+                        result += `<div class="language">${language || 'plaintext'}</div><pre><code class="language-${language || 'plaintext'}">${codeBlock.trim()}</code></pre>`;
                     }
                 } else {
                     if (isInCodeBlock) {
