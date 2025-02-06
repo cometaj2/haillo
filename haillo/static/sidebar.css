@@ -139,6 +139,14 @@
     margin-left: 5px;
 }
 
+.view-all {
+    position: absolute;
+    right: 0;
+    text-align: right;
+    padding-right: 15px; /* Optional: adds some padding */
+    color: #666; /* Optional: style the link */
+}
+
 /* Model selector styles */
 .model-section {
     position: absolute;
