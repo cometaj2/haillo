@@ -30,4 +30,4 @@ haillo --version
 
 haillo run | bash
 
-gunicorn --preload --workers=4 --threads=100 -b 127.0.0.1:8000 --chdir `haillo path` "haillo:webapp()"
+gunicorn --preload --workers=1 --threads=100 -b 127.0.0.1:8000 --chdir `haillo path` "haillo:webapp()"

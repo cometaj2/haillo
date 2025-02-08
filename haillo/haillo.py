@@ -232,10 +232,6 @@ def webapp():
     def serve_manifest():
         return app.send_static_file('manifest.json')
 
-    @app.route('/sw.js')
-    def serve_sw():
-        return app.send_static_file('sw.js')
-
     return app
 
 app = webapp()
