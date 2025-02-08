@@ -152,7 +152,7 @@ def webapp():
         try:
             # Execute hai set
             cmd_start = time.time()
-            logging.info("switching to context_id: " + context_id)
+            logging.info("Switching to context_id " + context_id)
             chunks = cli(f"hai set {context_id}")
             chunk_count = 0
             for dest, chunk in chunks:
@@ -168,6 +168,7 @@ def webapp():
     @app.route('/context/<context_id>', methods=['POST'])
     def delete_context(context_id):
         try:
+            logging.info("Removing context_id " + context_id)
             chunks = cli(f"hai rm {context_id}")
             chunk_count = 0
             for dest, chunk in chunks:
@@ -183,6 +184,7 @@ def webapp():
     def chat():
         try:
             message = request.form.get('message')
+            logging.info("Sending message to selected model...")
             stream = io.BytesIO(message.encode('utf-8'))
 
             with stdin(stream):
@@ -202,6 +204,7 @@ def webapp():
     def set_model():
         try:
             model = request.form.get('model')
+            logging.info(f"Setting model to {model}")
             chunks = cli(f"hai model set {model}")
             for dest, chunk in chunks:
                 chunk_count += 1
