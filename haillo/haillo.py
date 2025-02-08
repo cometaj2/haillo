@@ -152,11 +152,11 @@ def webapp():
         try:
             # Execute hai set
             cmd_start = time.time()
+            logging.info("switching to context_id: " + context_id)
             chunks = cli(f"hai set {context_id}")
             chunk_count = 0
             for dest, chunk in chunks:
                 chunk_count += 1
-
 
             return redirect(url_for('index'))
         except Exception as error:
@@ -184,11 +184,13 @@ def webapp():
         try:
             message = request.form.get('message')
             stream = io.BytesIO(message.encode('utf-8'))
+
             with stdin(stream):
                 chunks = cli(f"hai")
                 chunk_count = 0
                 for dest, chunk in chunks:
                     chunk_count += 1
+
             return redirect(url_for('index'))
         except Exception as error:
             logging.error(f"Context switch failed: {error}")

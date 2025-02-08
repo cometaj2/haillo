@@ -74,17 +74,6 @@
         <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-yaml.min.js"></script>
         <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-markdown.min.js"></script>
         <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-typescript.min.js"></script>
-        <script>
-            if ('serviceWorker' in navigator) {
-                window.addEventListener('load', function() {
-                    navigator.serviceWorker.register("/sw.js").then(function(registration) {
-                        console.log('ServiceWorker registration successful with scope: ', registration.scope);
-                    }, function(err) {
-                        console.log('ServiceWorker registration failed: ', err);
-                    });
-                });
-            }
-        </script>
         <script src="{{ url_for('static', filename='context.js') }}"></script>
         <script src="{{ url_for('static', filename='sidebar.js') }}"></script>
     </body>

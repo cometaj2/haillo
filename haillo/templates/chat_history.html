@@ -55,6 +55,7 @@
                 border-radius: 4px;
                 cursor: pointer;
                 transition: all 0.2s ease;
+                pointer-events: auto;
             }
 
             .context-card:hover {
@@ -92,6 +93,7 @@
                 cursor: pointer;
                 height: fit-content;
                 line-height: 1;
+                pointer-events: auto;
             }
 
             .context-delete-button:hover {
@@ -167,8 +169,8 @@
                 <div class="messages-container">
                     <div class="context-grid">
                         {% for chat in chats %}
-                        <div class="context-card">
-                            <div class="context-info" onclick="window.location.href='/context/{{ chat.context_id }}'">
+                        <div class="context-card" onclick="window.location.href='/context/{{ chat.context_id }}'">
+                            <div class="context-info">
                                 <div class="context-header">
                                     <div class="context-id-name">
                                         <span class="context-id">#{{ chat.context_id }}</span>
@@ -197,15 +199,6 @@
             </div>
         </div>
         <script>
-            if ('serviceWorker' in navigator) {
-                window.addEventListener('load', function() {
-                    navigator.serviceWorker.register("/sw.js").then(function(registration) {
-                        console.log('ServiceWorker registration successful with scope: ', registration.scope);
-                    }, function(err) {
-                        console.log('ServiceWorker registration failed: ', err);
-                    });
-                });
-            }
             document.addEventListener('DOMContentLoaded', () => {
                 observer.observe(document.querySelector('.main-content'), {
                     childList: true,
