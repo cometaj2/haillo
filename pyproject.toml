@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "haillo"
 dynamic = ["version", "dependencies"]
-description = "Haillo is a web frontend for hai (hcli_hai), the command line AI chat application."
+description = "Haillo is a web frontend for hai (hcli_hai), the HCLI command line AI chat application."
 readme = "README.rst"
 authors = [{name = "Jeff Michaud", email = "cometaj2@proton.me"}]
 license = {text = "MIT"}
@@ -20,7 +20,7 @@ classifiers = [
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12"
 ]
-keywords = ["web", "ui", "cli", "client", "server", "connector", "hypermedia", "rest", "generic", "development"]
+keywords = ["ai", "llm", "web", "ui", "cli", "client", "server", "connector", "hypermedia", "rest", "generic", "development"]
 
 [project.urls]
 Homepage = "https://github.com/cometaj2/haillo"

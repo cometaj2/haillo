@@ -53,8 +53,8 @@ def webapp():
     # Huckle to attempt to stream data when there is none to stream, leading to unexpected stream interruption
     # socket closeout in urllib3's pool and bad file descriptor errors.
     ##########################################################################################################
-    if not sys.stdin.isatty():
-        sys.stdin = io.BytesIO()
+#     if not sys.stdin.isatty():
+#         sys.stdin = io.BytesIO()
 
     app = Flask(__name__)
 
@@ -150,13 +150,14 @@ def webapp():
     @app.route('/context/<context_id>')
     def navigate_context(context_id):
         try:
-            # Execute hai set
-            cmd_start = time.time()
             logging.info("Switching to context_id " + context_id)
-            chunks = cli(f"hai set {context_id}")
-            chunk_count = 0
-            for dest, chunk in chunks:
-                chunk_count += 1
+
+            stream = io.BytesIO(b'')
+            with stdin(stream):
+                chunks = cli(f"hai set {context_id}")
+                chunk_count = 0
+                for dest, chunk in chunks:
+                    chunk_count += 1
 
             return redirect(url_for('index'))
         except Exception as error:
@@ -169,10 +170,14 @@ def webapp():
     def delete_context(context_id):
         try:
             logging.info("Removing context_id " + context_id)
-            chunks = cli(f"hai rm {context_id}")
-            chunk_count = 0
-            for dest, chunk in chunks:
-                chunk_count += 1
+
+            stream = io.BytesIO(b'')
+            with stdin(stream):
+                chunks = cli(f"hai rm {context_id}")
+                chunk_count = 0
+                for dest, chunk in chunks:
+                    chunk_count += 1
+
             return redirect(url_for('index'))
         except Exception as error:
             logging.error(f"Context deletion failed: {error}")

@@ -3,7 +3,7 @@
 Haillo
 ======
 
-Haillo is a web frontend for hai (hcli_hai), the command line AI chat application.
+Haillo is a web frontend for hai (hcli_hai), the HCLI command line AI chat application.
 
 ----
 
@@ -18,11 +18,11 @@ Help shape HCLI and it's ecosystem by raising issues on github!
 Related HCLI Projects
 ---------------------
 
-- hcli_core, an HCLI Connector that can be used to expose a REST API that behaves as a CLI, via hypertext [2]
+- hcli_core, an HCLI Connector that can be used to expose a REST API that behaves as a CLI [2]
 
-- huckle is a CLI, and python library, that can act as an impostor for any CLI expressed via hypertext [3]
+- huckle is a CLI, and python library, that can act as an impostor for any CLI expressed via hypertext command line interface (HCLI) semantics [3]
 
-- hcli-hai, a python package wrapper that contains an HCLI sample application (hai); hai is an HCLI for interacting with Anthropic's Claude models via terminal input and output streams. [4]
+- hcli_hai, a python package wrapper that contains an HCLI sample application (hai); hai is an HCLI for interacting with Anthropic's Claude models via terminal input and output streams. [4]
 
 [2] https://github.com/cometaj2/hcli_core
 
