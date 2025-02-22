@@ -17,7 +17,7 @@
         <link href="{{url_for('static', filename='context.css')}}" rel="stylesheet" />
         <link href="{{url_for('static', filename='sidebar.css')}}" rel="stylesheet" />
     </head>
-    <body onload='window.scroll(0,1000000); document.querySelector(".chat-input").focus();'>
+    <body onload='document.querySelector(".chat-input").focus();'>
         <div class="container">
             {% include 'sidebar.html' %}
             <div class="main-content">
