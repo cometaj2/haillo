@@ -47,15 +47,6 @@ def parse_context(context_str):
         return {'messages': [], 'name': '', 'title': ''}
 
 def webapp():
-    ################################################ CRITICAL ################################################
-    # This ensures a clean stdin state before workers fork.
-    # Without this, flask/gunicorn can hand off an inconsistent stdin state to huckle which causes
-    # Huckle to attempt to stream data when there is none to stream, leading to unexpected stream interruption
-    # socket closeout in urllib3's pool and bad file descriptor errors.
-    ##########################################################################################################
-#     if not sys.stdin.isatty():
-#         sys.stdin = io.BytesIO()
-
     app = Flask(__name__)
 
     @app.route('/')
@@ -81,7 +72,7 @@ def webapp():
             # Convert to a python list
             model = ast.literal_eval(model)[0]
 
-            # Get model in use
+            # Get models list
             chunks = cli(f"hai model ls --json")
             models = ""
             for dest, chunk in chunks:  # Now unpacking tuple of (dest, chunk)
@@ -127,7 +118,7 @@ def webapp():
             # Convert to a python list
             model = ast.literal_eval(model)[0]
 
-            # Get model in use
+            # Get models list
             chunks = cli(f"hai model ls --json")
             models = ""
             for dest, chunk in chunks:  # Now unpacking tuple of (dest, chunk)
@@ -152,12 +143,9 @@ def webapp():
         try:
             logging.info("Switching to context_id " + context_id)
 
-            stream = io.BytesIO(b'')
-            with stdin(stream):
-                chunks = cli(f"hai set {context_id}")
-                chunk_count = 0
-                for dest, chunk in chunks:
-                    chunk_count += 1
+            chunks = cli(f"hai set {context_id}")
+            for dest, chunk in chunks:
+                pass
 
             return redirect(url_for('index'))
         except Exception as error:
@@ -171,12 +159,9 @@ def webapp():
         try:
             logging.info("Removing context_id " + context_id)
 
-            stream = io.BytesIO(b'')
-            with stdin(stream):
-                chunks = cli(f"hai rm {context_id}")
-                chunk_count = 0
-                for dest, chunk in chunks:
-                    chunk_count += 1
+            chunks = cli(f"hai rm {context_id}")
+            for dest, chunk in chunks:
+                pass
 
             return redirect(url_for('index'))
         except Exception as error:
@@ -194,9 +179,8 @@ def webapp():
 
             with stdin(stream):
                 chunks = cli(f"hai")
-                chunk_count = 0
                 for dest, chunk in chunks:
-                    chunk_count += 1
+                    pass
 
             return redirect(url_for('index'))
         except Exception as error:
@@ -210,9 +194,11 @@ def webapp():
         try:
             model = request.form.get('model')
             logging.info(f"Setting model to {model}")
+
             chunks = cli(f"hai model set {model}")
             for dest, chunk in chunks:
-                chunk_count += 1
+                pass
+
             return redirect(url_for('index'))
         except Exception as error:
             logging.error(f"Model switch failed: {error}")
