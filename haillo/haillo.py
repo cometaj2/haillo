@@ -219,6 +219,43 @@ def webapp():
             logging.error(traceback.format_exc())
             return redirect(url_for('index'))
 
+    # We start vibing
+    @app.route('/vibestart', methods=['POST'])
+    def vibe_start():
+        try:
+            chunks = cli("hai vibe start")
+            for dest, chunk in chunks:
+                pass
+
+            return redirect(url_for('index'))
+        except Exception as error:
+            logging.error(f"Vibing failed: {error}")
+            logging.error(traceback.format_exc())
+            return redirect(url_for('index'))
+
+    # We stop vibing
+    @app.route('/vibestop', methods=['POST'])
+    def vibe_stop():
+        try:
+            chunks = cli("hai vibe stop")
+            for dest, chunk in chunks:
+                pass
+
+            return redirect(url_for('index'))
+        except Exception as error:
+            logging.error(f"Vibing failed: {error}")
+            logging.error(traceback.format_exc())
+            return redirect(url_for('index'))
+
+    @app.route('/vibe_status', methods=['GET'])
+    def vibe_status():
+        chunks = cli("hai vibe status")
+        status_str = ""
+        for dest, chunk in chunks:
+            if dest == 'stdout':
+                status_str += chunk.decode()
+        return status_str
+
     @app.route('/manifest.json')
     def serve_manifest():
         return app.send_static_file('manifest.json')

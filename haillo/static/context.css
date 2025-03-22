@@ -100,7 +100,8 @@ body {
     overflow-y: auto;
 }
 
-.send-button {
+.send-button,
+.vibe-button{
     padding: 10px 20px;
     background-color: #0066cc;
     color: white;
@@ -110,7 +111,8 @@ body {
     font-size: 1em;
 }
 
-.send-button:hover {
+.send-button:hover,
+.vibe-button:hover {
     background-color: #0052a3;
 }
 
@@ -206,4 +208,21 @@ body {
 @keyframes bounce {
     0%, 100% { transform: translateY(0); }
     50% { transform: translateY(-10px); }
+}
+
+/* Make sure these styles are applied to maintain the layout */
+.input-wrapper {
+    display: flex;
+    position: relative;
+    width: 100%;
+}
+
+.model-display {
+    display: block;
+    width: 100%;
+    text-align: left;
+    padding: 5px 0;
+    font-size: 12px;
+    color: #888;
+    margin-top: 5px;
 }

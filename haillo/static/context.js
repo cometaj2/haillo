@@ -65,7 +65,17 @@ document.addEventListener('DOMContentLoaded', () => {
     formatCodeBlocks();
     scrollToBottom();
     document.querySelector(".chat-input").focus();
-    
+
+    // Restore button state from localStorage
+    const savedButtonState = localStorage.getItem('vibeButtonState') || 'vibe';
+    const button = document.getElementById('vibe-toggle-button');
+    button.textContent = savedButtonState === 'stop' ? 'Stop' : 'Vibe';
+    button.setAttribute('data-state', savedButtonState);
+
+    // Initial update and periodic check
+    updateMessages();
+    setInterval(startVibeUpdates, 3000); // Check every 3 seconds when vibing
+
     // Start observing content changes
     observer.observe(document.querySelector('.messages-container'), {
         childList: true,
@@ -91,3 +101,56 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 });
+
+async function getVibeStatus() {
+    const response = await fetch('/vibe_status');
+    const text = await response.text();
+    return text.trim() !== '';
+}
+
+async function startVibeUpdates() {
+    const loadingIndicator = document.querySelector('.loading-indicator');
+    if (await getVibeStatus()) {
+        loadingIndicator.style.display = 'block';
+        updateMessages();
+    } else {
+        loadingIndicator.style.display = 'none';
+    }
+}
+
+async function toggleVibe() {
+    const button = document.getElementById('vibe-toggle-button');
+    const currentState = button.getAttribute('data-state');
+    const loadingIndicator = document.querySelector('.loading-indicator');
+    button.disabled = true;
+    loadingIndicator.style.display = 'block';
+    const endpoint = currentState === 'vibe' ? '/vibestart' : '/vibestop';
+
+    await fetch(endpoint, { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' } });
+    const newState = currentState === 'vibe' ? 'stop' : 'vibe';
+    button.textContent = newState === 'vibe' ? 'Vibe' : 'Stop';
+    button.setAttribute('data-state', newState);
+    localStorage.setItem('vibeButtonState', newState);
+    updateMessages();
+    loadingIndicator.style.display = (await getVibeStatus()) ? 'block' : 'none';
+    button.disabled = false;
+}
+
+async function updateMessages() {
+    const response = await fetch('/');
+    const html = await response.text();
+    const doc = new DOMParser().parseFromString(html, 'text/html');
+    const newMessagesContainer = doc.querySelector('.messages-container');
+    const currentMessagesContainer = document.querySelector('.messages-container');
+    if (newMessagesContainer && currentMessagesContainer) {
+        currentMessagesContainer.innerHTML = newMessagesContainer.innerHTML;
+        formatCodeBlocks();
+        scrollToBottom();
+    }
+    const button = document.getElementById('vibe-toggle-button');
+    const savedState = localStorage.getItem('vibeButtonState');
+    button.textContent = savedState === 'stop' ? 'Stop' : 'Vibe';
+    button.setAttribute('data-state', savedState);
+    document.querySelector('.loading-indicator').style.display = (await getVibeStatus()) ? 'block' : 'none';
+    button.disabled = false;
+}
