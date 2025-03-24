@@ -4,6 +4,10 @@ All notable changes to this project will be documented in this file.
 The format is loosely based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/)
 and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 
+## [0.3.1]
+- Add support for conversation vibing and hcli tool integration per new hcli_hai capabilities.
+- Update to a minimum of huckle 5.7.0 to leverage huckle and hcli help text output (no man pages) for LLM data consumption
+
 ## [0.2.5]
 - Remove useless scrolling code in index.html body
 
