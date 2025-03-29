@@ -9,7 +9,7 @@ import contextlib
 import urllib3
 import time
 from huckle import cli, stdin
-from flask import Flask, render_template, send_file, jsonify, Response, redirect, url_for, request
+from flask import Flask, render_template, send_file, jsonify, Response, redirect, url_for, request, render_template_string
 import subprocess
 import ast
 
@@ -85,13 +85,15 @@ def webapp():
             # Parse the context into structured data
             context_data = parse_context(context_str)
 
+            popup_message = request.args.get('popup')  # Get from query param
             return render_template('index.html',
                                     messages=context_data['messages'],
                                     name=context_data['name'],
                                     title=context_data['title'],
                                     chats=chats,
                                     model=model,
-                                    models=models)
+                                    models=models,
+                                    popup_message=popup_message)
         except Exception as error:
             logging.error(traceback.format_exc())
             return render_template('index.html',
@@ -100,7 +102,8 @@ def webapp():
                                     title='',
                                     chats=[],
                                     model=None,
-                                    models=[])
+                                    models=[],
+                                    popup_message=None)
 
     @app.route('/chat_history')
     def chat_history():
@@ -128,14 +131,18 @@ def webapp():
             # Convert to a python list
             models = ast.literal_eval(models)
 
+            popup_message = request.args.get('popup')  # Get from query param
             return render_template('chat_history.html', chats=chats,
                                     model=model,
-                                    models=models)
+                                    models=models,
+                                    popup_message=popup_message)
         except Exception as error:
             logging.error(traceback.format_exc())
+
         return render_template('chat_history.html', chats=[],
                                 model=None,
-                                models=[])
+                                models=[],
+                                popup_message=None)
 
     # We select and set a chat context
     @app.route('/context/<context_id>')
@@ -144,8 +151,17 @@ def webapp():
             logging.info("Switching to context_id " + context_id)
 
             chunks = cli(f"hai set {context_id}")
+            stderr_output = ""
+            stdout_output = ""
             for dest, chunk in chunks:
-                pass
+                if dest == 'stderr':
+                    stderr_output += chunk.decode()
+                elif dest == 'stdout':
+                    stdout_output += chunk.decode()
+
+            if stderr_output:
+                logging.error(f"{stderr_output}")
+                return redirect(url_for('index', popup=f"{stderr_output}"))
 
             return redirect(url_for('index'))
         except Exception as error:
@@ -179,8 +195,17 @@ def webapp():
 
             with stdin(stream):
                 chunks = cli(f"hai")
+                stderr_output = ""
+                stdout_output = ""
                 for dest, chunk in chunks:
-                    pass
+                    if dest == 'stderr':
+                        stderr_output += chunk.decode()
+                    elif dest == 'stdout':
+                        stdout_output += chunk.decode()
+
+                if stderr_output:
+                    logging.error(f"{stderr_output}")
+                    return redirect(url_for('index', popup=f"{stderr_output}"))
 
             return redirect(url_for('index'))
         except Exception as error:
@@ -210,8 +235,17 @@ def webapp():
     def new_chat():
         try:
             chunks = cli("hai new")
+            stderr_output = ""
+            stdout_output = ""
             for dest, chunk in chunks:
-                pass
+                if dest == 'stderr':
+                    stderr_output += chunk.decode()
+                elif dest == 'stdout':
+                    stdout_output += chunk.decode()
+
+            if stderr_output:
+                logging.error(f"{stderr_output}")
+                return redirect(url_for('index', popup=f"{stderr_output}"))
 
             return redirect(url_for('index'))
         except Exception as error:
