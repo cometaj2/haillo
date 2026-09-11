@@ -1,24 +1,24 @@
 [build-system]
-requires = ["setuptools>=45", "wheel"]
+requires = ["setuptools==75.3.2", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
 name = "haillo"
 dynamic = ["version", "dependencies"]
-description = "Haillo is a web frontend for hai (hcli_hai), the HCLI command line AI chat application."
+description = "Haillo is a VIM terminal UI plugin for hai (hcli_hai), the HCLI command line AI chat application."
 readme = "README.rst"
 authors = [{name = "Jeff Michaud", email = "cometaj2@proton.me"}]
-license = {text = "MIT"}
+license = { file = "LICENSE.txt" }
 classifiers = [
     "Development Status :: 4 - Beta",
     "Intended Audience :: Developers",
     "Topic :: Software Development",
     "License :: OSI Approved :: MIT License",
-    "Programming Language :: Python :: 3.8",
-    "Programming Language :: Python :: 3.9",
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
-    "Programming Language :: Python :: 3.12"
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14"
 ]
 keywords = ["ai", "llm", "web", "ui", "cli", "client", "server", "connector", "hypermedia", "rest", "generic", "development"]
 
@@ -34,10 +34,7 @@ dependencies = {file = "requirements.txt"}
 
 [tool.setuptools]
 packages = ["haillo",
-            "haillo.data",
-            "haillo.images",
-            "haillo.static",
-            "haillo.templates",
+            "haillo.data"
            ]
 include-package-data = true
 

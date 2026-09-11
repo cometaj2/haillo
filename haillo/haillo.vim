@@ -1,0 +1,188 @@
+" 'vim -S haillo.vim -c "Haillo"' to launch directly
+
+" context window refresh
+let s:context_buf = -1
+let s:context_timer = -1
+let s:refresh_ms = 2000
+
+" verbal assistance
+let s:assist = 0
+
+function! s:haillo() abort
+    call s:create_context_window()
+    call s:start_context_refresh(s:refresh_ms)
+    call s:create_question_window()
+endfunction
+
+
+function! s:start_context_refresh(ms) abort
+    call s:stop_context_refresh()
+    let s:context_timer = timer_start(a:ms, function('s:get_context'), {'repeat': -1})
+endfunction
+
+
+function! s:stop_context_refresh() abort
+    if s:context_timer != -1
+        call timer_stop(s:context_timer)
+        let s:context_timer = -1
+    endif
+endfunction
+
+
+function! s:create_context_window() abort
+    let l:buf_name = 'context'
+    let l:win_num = bufwinnr(l:buf_name)
+
+    " If the window is already open, close it
+    if l:win_num != -1
+        execute l:win_num . 'wincmd w'
+        close
+        return
+    endif
+
+    " Open a new window for the context
+    execute 'vertical botright new ' . l:buf_name
+
+    " stop the user from editing the buffer
+    setlocal nomodifiable
+
+    " tell Vim this is a temporary buffer not backed by a file
+    setlocal buftype=nofile
+    setlocal bufhidden=wipe
+    setlocal noswapfile
+    setlocal nonumber
+    setlocal nowrap
+    setlocal nospell
+
+    let s:context_buf = bufnr('%')
+    autocmd BufWipeout <buffer> call s:stop_context_refresh()
+
+    call s:get_context()
+
+    :bd 1
+endfunction
+
+
+function! s:get_context(...) abort
+    if s:context_buf < 0 || !bufexists(s:context_buf)
+        call s:stop_context_refresh()
+        return
+    endif
+
+    let l:winid = bufwinid(s:context_buf)
+    let l:follow = 0
+    if l:winid != -1
+        let l:info = getwininfo(l:winid)[0]
+        let l:follow = l:info.botline >= getbufinfo(s:context_buf)[0].linecount
+    endif
+
+    let s:context_changed = 0
+    python3 << trim EOF
+        from huckle import cli
+        import vim
+
+        bufnr = int(vim.eval('s:context_buf'))
+        buf = vim.buffers[bufnr]
+
+        chunks = cli("hai context")
+        context_str = ""
+        for dest, chunk in chunks:
+            if dest == 'stdout':
+                context_str += chunk.decode()
+
+        new_lines = context_str.splitlines()
+        if list(buf) != new_lines:
+            buf.options['modifiable'] = True
+            buf[:] = new_lines
+            buf.options['modifiable'] = False
+            vim.command('let s:context_changed = 1')
+    EOF
+
+    if s:context_changed && l:follow && l:winid != -1
+        call win_execute(l:winid, 'keepjumps normal! G')
+    endif
+endfunction
+
+
+function! s:create_question_window() abort
+    let l:buf_name = 'question'
+    let l:win_num = bufwinnr(l:buf_name)
+
+    " If the window is already open, close it
+    if l:win_num != -1
+        execute l:win_num . 'wincmd w'
+        close
+        return
+    endif
+
+    " Open a new questions input text area
+    execute 'botright 5split ' . l:buf_name
+
+    " Configure the buffer as a temporary scratchpad
+    setlocal buftype=nofile
+    setlocal bufhidden=hide
+    setlocal noswapfile
+    setlocal nowrap
+    setlocal number
+    nnoremap <buffer> <CR> :call <SID>chat(join(getline(1, '$'), "\n"))<CR>
+endfunction
+
+
+function! s:chat(param) abort
+    python3 << trim EOF
+        import io
+        import vim
+        from huckle import cli, stdin
+
+        py_lines = vim.eval('a:param')
+        stream = io.BytesIO(py_lines.encode('utf-8'))
+        with stdin(stream):
+            chunks = cli(f"hai")
+    EOF
+    silent! %delete _
+    call setline(1, '')
+endfunction
+
+
+function! s:close_all_and_quit()
+    " Delete all listed buffers
+    let s:buffers = getbufinfo({'buflisted': 1})
+    for s:buf in s:buffers
+        execute 'bdelete ' . s:buf.bufnr
+    endfor
+    quit
+endfunction
+
+
+let mapleader = ","
+nnoremap <leader>a :call <SID>toggle_assist()<CR>
+function! s:toggle_assist() abort
+    if s:assist == 0
+        python3 << trim EOF
+            from huckle import cli
+            for dest, chunk in cli('hai assist start'):
+                pass
+        EOF
+        let s:assist = 1
+    else
+        python3 << trim EOF
+            from huckle import cli
+            for dest, chunk in cli('hai assist stop'):
+                pass
+        EOF
+        let s:assist = 0
+    endif
+endfunction
+
+
+" Overwrite :q command
+command! Q call s:close_all_and_quit()
+cabbrev q Q
+
+" Fast window switching using Ctrl + h/j/k/l
+nnoremap <C-h> <C-w>h
+nnoremap <C-j> <C-w>j
+nnoremap <C-k> <C-w>k
+nnoremap <C-l> <C-w>l
+
+command! -nargs=0 Haillo call s:haillo()

@@ -1,22 +1,17 @@
 .TH HAILLO 1 "FEBRUARY 2025" Linux "User Manuals"
 .SH NAME
-Haillo \- a web frontend for hai (hcli_hai), the command line AI chat application.
+Haillo \- a VIM terminal UI plugin for hai (hcli_hai), the HCLI command line AI chat application.
 .SH SYNOPSIS
 .B haillo
-[
-.I option
-|
-.I <command>
-]
+[ option | <command> ]
 .SH DESCRIPTION
 .B haillo
-is a Web Service Gateway Interface (WSGI; PEP 3333) application and progressive web app (PWA) that provides a way to interact with the hai command line chat application.
-.br
-Note that huckle must be setup to interact with hcli_hai for haillo to be able to make use of it (e.g. huckle cli install localhost:10000 (where hcli_hai could be running))
-
+is a VIM script plugin and terminal UI for hai (hcli_hai), the HCLI command line AI chat application.
+.sp
+The VIM script itself can be invoked via python package name (simply typing haillo in the terminal after installing haillo via pip) to help launch the VIM script as a VIM application. The VIM script is tied into python package version dependencies to help maintain semantic expectations for the VIM plugin; notably against huckle and hcli_hai. The VIM script itself makes trivial use of huckle as a python library to integrate to a service running hai (hcli_hai running on hcli_core), either locally or remotely.
+.sp
+Note that huckle must be setup to interact with hcli_hai for haillo to be able to make use of it (e.g. huckle cli install localhost:10000 (e.g. where hcli_hai could be running)).
 .SH COMMANDS
-.IP "path"
-Provides the installation path of haillo, which can be used to help locate the path of the WSGI app to use in a WSGI server.
 .IP help
 This help file.
 .SH OPTIONS
@@ -24,10 +19,8 @@ This help file.
 .B haillo
 version and the version of it's dependencies.
 .SH EXAMPLE
-haillo path
-
+haillo
+.sp
+haillo help
+.sp
 haillo --version
-
-haillo run | bash
-
-gunicorn --preload --workers=1 --threads=100 -b 127.0.0.1:8000 --chdir `haillo path` "haillo:webapp()"
