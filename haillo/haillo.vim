@@ -1,5 +1,11 @@
 " 'vim -S haillo.vim -c "Haillo"' to launch directly
 
+let mapleader = ","
+
+" models window
+let s:models = 0
+let s:models_buf = -1
+
 " context window refresh
 let s:context_buf = -1
 let s:context_timer = -1
@@ -7,6 +13,7 @@ let s:refresh_ms = 2000
 
 " verbal assistance
 let s:assist = 0
+
 
 function! s:haillo() abort
     call s:create_context_window()
@@ -128,6 +135,94 @@ function! s:create_question_window() abort
 endfunction
 
 
+function! s:create_models_window() abort
+    let l:buf_name = 'models'
+    let l:win_num = bufwinnr(l:buf_name)
+    if l:win_num != -1
+        execute l:win_num . 'wincmd w'
+        close
+        return
+    endif
+
+    " Create, then pin to far left at full height (left of context + question)
+    execute 'topleft 28vnew ' . l:buf_name
+    wincmd H
+    execute 'vertical resize 30'
+
+    setlocal nomodifiable
+    setlocal buftype=nofile
+    setlocal bufhidden=wipe
+    setlocal noswapfile
+    setlocal nonumber
+    setlocal nowrap
+    setlocal nospell
+    setlocal winfixwidth
+    let s:models_buf = bufnr('%')
+    call s:get_models()
+
+    nnoremap <buffer> <CR> :call <SID>select_model(getline('.'))<CR>
+
+endfunction
+
+
+function! s:select_model(name) abort
+    let l:name = trim(a:name)
+    if empty(l:name)
+        return
+    endif
+    python3 << trim EOF
+        from huckle import cli
+        import vim
+        name = vim.eval('l:name')
+        for dest, chunk in cli(f"hai model set {name}"):
+            pass
+    EOF
+endfunction
+
+
+function! s:toggle_models() abort
+    if s:models == 0
+        call s:create_models_window()
+        let s:models = 1
+    else
+        call s:close_models_window()
+        let s:models = 0
+    endif
+endfunction
+nnoremap <leader>m :call <SID>toggle_models()<CR>
+
+
+function! s:close_models_window() abort
+    let l:win_num = bufwinnr('models')
+    if l:win_num != -1
+        execute l:win_num . 'wincmd w'
+        close
+    endif
+    let s:models_buf = -1
+endfunction
+
+
+function! s:get_models() abort
+    if s:models_buf < 0 || !bufexists(s:models_buf)
+        return
+    endif
+    python3 << trim EOF
+        from huckle import cli
+        import vim
+        bufnr = int(vim.eval('s:models_buf'))
+        buf = vim.buffers[bufnr]
+        chunks = cli("hai model ls")
+        out = ""
+        for dest, chunk in chunks:
+            if dest == 'stdout':
+                out += chunk.decode()
+        buf.options['modifiable'] = True
+        buf[:] = out.splitlines()
+        buf.options['modifiable'] = False
+    EOF
+endfunction
+
+
 function! s:chat(param) abort
     python3 << trim EOF
         import io
@@ -154,7 +249,6 @@ function! s:close_all_and_quit()
 endfunction
 
 
-let mapleader = ","
 nnoremap <leader>a :call <SID>toggle_assist()<CR>
 function! s:toggle_assist() abort
     if s:assist == 0
@@ -176,13 +270,13 @@ endfunction
 
 
 " Overwrite :q command
-command! Q call s:close_all_and_quit()
+command! -bang Q call s:close_all_and_quit()
 cabbrev q Q
 
 " Fast window switching using Ctrl + h/j/k/l
-nnoremap <C-h> <C-w>h
-nnoremap <C-j> <C-w>j
-nnoremap <C-k> <C-w>k
-nnoremap <C-l> <C-w>l
+nnoremap <C-h> :wincmd h<CR>
+nnoremap <C-j> :wincmd j<CR>
+nnoremap <C-k> :wincmd k<CR>
+nnoremap <C-l> :wincmd l<CR>
 
 command! -nargs=0 Haillo call s:haillo()
