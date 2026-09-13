@@ -160,6 +160,9 @@ function! s:create_models_window() abort
     let s:models_buf = bufnr('%')
     call s:get_models()
 
+    set cursorline
+    highlight CursorLine cterm=NONE ctermbg=darkgray guibg=#2c2c2c
+
     nnoremap <buffer> <CR> :call <SID>select_model(getline('.'))<CR>
 
 endfunction
