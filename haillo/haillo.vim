@@ -232,7 +232,7 @@ function! s:chat(param) abort
         py_lines = vim.eval('a:param')
         stream = io.BytesIO(py_lines.encode('utf-8'))
         with stdin(stream):
-            chunks = cli(f"hai")
+            chunks = cli(f"hai --async")
     EOF
     silent! %delete _
     call setline(1, '')
