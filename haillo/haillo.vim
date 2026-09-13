@@ -195,6 +195,17 @@ endfunction
 nnoremap <leader>m :call <SID>toggle_models()<CR>
 
 
+function! s:reset_current_context() abort
+    python3 << trim EOF
+        from huckle import cli
+        import vim
+        buf = vim.buffers[bufnr]
+        chunks = cli("hai reset")
+    EOF
+endfunction
+nnoremap <leader>r :call <SID>reset_current_context()<CR>
+
+
 function! s:close_models_window() abort
     let l:win_num = bufwinnr('models')
     if l:win_num != -1
