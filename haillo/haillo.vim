@@ -164,7 +164,6 @@ function! s:create_models_window() abort
     highlight CursorLine cterm=NONE ctermbg=darkgray guibg=#2c2c2c
 
     nnoremap <buffer> <CR> :call <SID>select_model(getline('.'))<CR>
-
 endfunction
 
 
@@ -180,6 +179,7 @@ function! s:select_model(name) abort
         for dest, chunk in cli(f"hai model set {name}"):
             pass
     EOF
+    call s:toggle_models()
 endfunction
 
 
