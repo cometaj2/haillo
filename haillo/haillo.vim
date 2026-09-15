@@ -11,9 +11,6 @@ let s:context_buf = -1
 let s:context_timer = -1
 let s:refresh_ms = 2000
 
-" verbal assistance
-let s:assist = 0
-
 
 function! s:haillo() abort
     call s:create_context_window()
@@ -265,21 +262,16 @@ endfunction
 
 nnoremap <leader>a :call <SID>toggle_assist()<CR>
 function! s:toggle_assist() abort
-    if s:assist == 0
-        python3 << trim EOF
-            from huckle import cli
-            for dest, chunk in cli('hai assist start'):
-                pass
-        EOF
-        let s:assist = 1
-    else
-        python3 << trim EOF
-            from huckle import cli
-            for dest, chunk in cli('hai assist stop'):
-                pass
-        EOF
-        let s:assist = 0
-    endif
+    python3 << trim EOF
+        from huckle import cli
+        status = None
+        for dest, chunk in cli('hai assist status'):
+            status = chunk.decode()
+        if status == "False":
+            cli('hai assist start')
+        elif status == "True":
+            cli('hai assist stop')
+    EOF
 endfunction
 
 
