@@ -6,6 +6,10 @@ let mapleader = ","
 let s:models = 0
 let s:models_buf = -1
 
+" conversations window
+let s:conversations = 0
+let s:conversations_buf = -1
+
 " context window refresh
 let s:context_buf = -1
 let s:context_timer = -1
@@ -132,6 +136,10 @@ function! s:create_question_window() abort
 endfunction
 
 
+
+""""""""""""""""""""""""""""
+" Models window related code
+""""""""""""""""""""""""""""
 function! s:create_models_window() abort
     let l:buf_name = 'models'
     let l:win_num = bufwinnr(l:buf_name)
@@ -192,17 +200,6 @@ endfunction
 nnoremap <leader>m :call <SID>toggle_models()<CR>
 
 
-function! s:reset_current_context() abort
-    python3 << trim EOF
-        from huckle import cli
-        import vim
-        buf = vim.buffers[bufnr]
-        chunks = cli("hai reset")
-    EOF
-endfunction
-nnoremap <leader>r :call <SID>reset_current_context()<CR>
-
-
 function! s:close_models_window() abort
     let l:win_num = bufwinnr('models')
     if l:win_num != -1
@@ -232,6 +229,115 @@ function! s:get_models() abort
         buf.options['modifiable'] = False
     EOF
 endfunction
+""""""""""""""""""""""""""""
+
+
+"""""""""""""""""""""""""""""""""""
+" Conversations window related code
+"""""""""""""""""""""""""""""""""""
+function! s:create_conversations_window() abort
+    let l:buf_name = 'conversations'
+    let l:win_num = bufwinnr(l:buf_name)
+    if l:win_num != -1
+        execute l:win_num . 'wincmd w'
+        close
+        return
+    endif
+
+    " Create, then pin to far left at full height (left of context + question)
+    execute 'topleft vnew ' . l:buf_name
+    wincmd H
+    execute 'vertical resize ' . &columns
+
+    setlocal nomodifiable
+    setlocal buftype=nofile
+    setlocal bufhidden=wipe
+    setlocal noswapfile
+    setlocal nonumber
+    setlocal nowrap
+    setlocal nospell
+    setlocal winfixwidth
+    let s:conversations_buf = bufnr('%')
+    call s:get_conversations()
+
+    set cursorline
+    highlight CursorLine cterm=NONE ctermbg=darkgray guibg=#2c2c2c
+
+    nnoremap <buffer> <CR> :call <SID>select_conversation(matchstr(getline('.'), '\v^\s*\zs\S+'))<CR>
+endfunction
+
+
+function! s:close_conversations_window() abort
+    let l:win_num = bufwinnr('conversations')
+    if l:win_num != -1
+        execute l:win_num . 'wincmd w'
+        close
+    endif
+    let s:conversations_buf = -1
+endfunction
+
+
+function! s:get_conversations() abort
+    if s:conversations_buf < 0 || !bufexists(s:conversations_buf)
+        return
+    endif
+    python3 << trim EOF
+        from huckle import cli
+        import vim
+        bufnr = int(vim.eval('s:conversations_buf'))
+        buf = vim.buffers[bufnr]
+        chunks = cli("hai ls")
+        out = ""
+        for dest, chunk in chunks:
+            if dest == 'stdout':
+                out += chunk.decode()
+        buf.options['modifiable'] = True
+        buf[:] = out.splitlines()
+        buf.options['modifiable'] = False
+    EOF
+endfunction
+
+
+function! s:select_conversation(name) abort
+    let l:name = trim(a:name)
+    if empty(l:name)
+        return
+    endif
+    python3 << trim EOF
+        from huckle import cli
+        import vim
+        name = vim.eval('l:name')
+        for dest, chunk in cli(f"hai set {name}"):
+            pass
+    EOF
+    call s:toggle_conversations()
+endfunction
+
+
+function! s:toggle_conversations() abort
+    if s:conversations == 0
+        call s:create_conversations_window()
+        let s:conversations = 1
+    else
+        call s:close_conversations_window()
+        let s:conversations = 0
+    endif
+endfunction
+nnoremap <leader>c :call <SID>toggle_conversations()<CR>
+
+"""""""""""""""""""""""""""""""""""
+
+
+function! s:reset_current_context() abort
+    python3 << trim EOF
+        from huckle import cli
+        import vim
+        buf = vim.buffers[bufnr]
+        chunks = cli("hai reset")
+    EOF
+endfunction
+nnoremap <leader>r :call <SID>reset_current_context()<CR>
+
 
 
 function! s:chat(param) abort
