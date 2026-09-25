@@ -59,7 +59,7 @@ function! s:create_context_window() abort
     setlocal bufhidden=wipe
     setlocal noswapfile
     setlocal nonumber
-    setlocal nowrap
+    setlocal wrap
     setlocal nospell
 
     let s:context_buf = bufnr('%')
@@ -130,7 +130,7 @@ function! s:create_question_window() abort
     setlocal buftype=nofile
     setlocal bufhidden=hide
     setlocal noswapfile
-    setlocal nowrap
+    setlocal wrap
     setlocal number
     nnoremap <buffer> <CR> :call <SID>chat(join(getline(1, '$'), "\n"))<CR>
 endfunction
