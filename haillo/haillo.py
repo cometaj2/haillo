@@ -26,7 +26,8 @@ import tty
 from typing import Optional
 
 # Ctrl-Space is NUL (0x00) in most terminals. Override with hex, e.g. "00".
-INVOKE = bytes.fromhex(os.environ.get("PTY_MUX_INVOKE", "00"))
+# Ctrl-H is (0x08).
+INVOKE = bytes.fromhex(os.environ.get("PTY_MUX_INVOKE", "08"))
 
 LOGO = r"""
   _           _ _ _
