@@ -36,7 +36,8 @@ LOGO = r"""
  | | | | (_| | | | | (_) |
  |_| |_|\__,_|_|_|_|\___/
         hello halo
-     ctrl-space to hop
+
+      ctrl-h to hop
 
 """.lstrip("\n")
 
