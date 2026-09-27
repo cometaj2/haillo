@@ -168,7 +168,7 @@ function! s:create_models_window() abort
     set cursorline
     highlight CursorLine cterm=NONE ctermbg=darkgray guibg=#2c2c2c
 
-    nnoremap <buffer> <CR> :call <SID>select_model(getline('.'))<CR>
+    nnoremap <silent> <buffer> <CR> :call <SID>select_model(getline('.'))<CR>
 endfunction
 
 
@@ -183,6 +183,9 @@ function! s:select_model(name) abort
         name = vim.eval('l:name')
         for dest, chunk in cli(f"hai model set {name}"):
             pass
+        vim.command("echohl ModeMsg")
+        vim.command("echo 'Model: " + name + "'")
+        vim.command("echohl None")
     EOF
     call s:toggle_models()
 endfunction
@@ -263,7 +266,7 @@ function! s:create_conversations_window() abort
     set cursorline
     highlight CursorLine cterm=NONE ctermbg=darkgray guibg=#2c2c2c
 
-    nnoremap <buffer> <CR> :call <SID>select_conversation(matchstr(getline('.'), '\v^\s*\zs\S+'))<CR>
+    nnoremap <silent> <buffer> <CR> :call <SID>select_conversation(matchstr(getline('.'), '\v^\s*\zs\S+'))<CR>
 endfunction
 
 
@@ -309,6 +312,9 @@ function! s:select_conversation(name) abort
         name = vim.eval('l:name')
         for dest, chunk in cli(f"hai set {name}"):
             pass
+        vim.command("echohl ModeMsg")
+        vim.command("echo 'Context: " + name + "'")
+        vim.command("echohl None")
     EOF
     call s:toggle_conversations()
 endfunction
@@ -339,7 +345,6 @@ endfunction
 nnoremap <leader>r :call <SID>reset_current_context()<CR>
 
 
-
 function! s:chat(param) abort
     python3 << trim EOF
         import io
@@ -366,17 +371,28 @@ function! s:close_all_and_quit()
 endfunction
 
 
-nnoremap <leader>a :call <SID>toggle_assist()<CR>
+nnoremap <silent> <leader>a :call <SID>toggle_assist()<CR>
 function! s:toggle_assist() abort
     python3 << trim EOF
         from huckle import cli
+        import vim
         status = None
         for dest, chunk in cli('hai assist status'):
-            status = chunk.decode()
+            if dest == 'stdout':
+                status = chunk.decode().strip()
         if status == "False":
-            cli('hai assist start')
+            for _ in cli('hai assist start'):
+                pass
+            new_status = "ON"
         elif status == "True":
-            cli('hai assist stop')
+            for _ in cli('hai assist stop'):
+                pass
+            new_status = "OFF"
+        else:
+            new_status = status or "unknown"
+        vim.command("echohl ModeMsg")
+        vim.command("echo 'Voice assistant: " + new_status + "'")
+        vim.command("echohl None")
     EOF
 endfunction
 
@@ -385,10 +401,12 @@ endfunction
 command! -bang Q call s:close_all_and_quit()
 cabbrev q Q
 
+
 " Fast window switching using Ctrl + h/j/k/l
 nnoremap <C-h> :wincmd h<CR>
 nnoremap <C-j> :wincmd j<CR>
 nnoremap <C-k> :wincmd k<CR>
 nnoremap <C-l> :wincmd l<CR>
+
 
 command! -nargs=0 Haillo call s:haillo()
