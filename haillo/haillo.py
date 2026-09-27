@@ -27,7 +27,7 @@ from typing import Optional
 
 # Ctrl-Space is NUL (0x00) in most terminals. Override with hex, e.g. "00".
 # Ctrl-H is (0x08).
-INVOKE = bytes.fromhex(os.environ.get("PTY_MUX_INVOKE", "08"))
+INVOKE = bytes.fromhex(os.environ.get("PTY_MUX_INVOKE", "00"))
 
 LOGO = r"""
   _           _ _ _
@@ -36,8 +36,7 @@ LOGO = r"""
  | | | | (_| | | | | (_) |
  |_| |_|\__,_|_|_|_|\___/
         hello halo
-
-      ctrl-h to hop
+     ctrl-space to hop
 
 """.lstrip("\n")
 
@@ -172,7 +171,7 @@ def wrap_shell() -> int:
     shell = os.environ.get("SHELL", "/bin/bash")
     shell_pid, shell_master = pty.fork()
     if shell_pid == 0:
-        os.execvp(shell, [shell, "-l"]) # Interactive or login, not login. An interactive shell prints "exit" while a login shell (`-l`) prints "logout" on exit.
+        os.execvp(shell, [shell, "-l"])
 
     try:
         set_winsize(shell_master, winsize(stdin_fd))
