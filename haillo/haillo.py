@@ -1,19 +1,18 @@
 #!/usr/bin/env python3
-"""Pass-through PTY wrapper around $SHELL with a mux hook.
+"""
 
+Pass-through PTY wrapper around $SHELL with a mux hook.
 The shell stays on its own PTY for the life of the wrapper. Ctrl-Space is
 only honored when that PTY's foreground process group is the shell itself
 (so vim, less, pagers, etc. swallow the key like a normal terminal).
-
 On Ctrl-Space the wrapper toggles a muxed application overlay. The overlay
 is a stub in this skeleton: implement spawn_app() / close_app() later.
 The shell PTY is never replaced.
 
-    python pty_mux.py
-    PTY_MUX_INVOKE=00 python pty_mux.py   # default: Ctrl-Space (NUL)
+PTY_MUX_INVOKE=00  # default: Ctrl-Space (NUL)
+
 """
 from __future__ import annotations
-
 import errno
 import fcntl
 import os
@@ -35,15 +34,23 @@ LOGO = r"""
  | '_ \ / _` | | | |/ _ \
  | | | | (_| | | | | (_) |
  |_| |_|\__,_|_|_|_|\___/
-
         hello halo
      ctrl-space to hop
 
 """.lstrip("\n")
 
+GOODBYE = r"""
+  _           _ _ _
+ | |__   __ _(_) | | ___
+ | '_ \ / _` | | | |/ _ \
+ | | | | (_| | | | | (_) |
+ |_| |_|\__,_|_|_|_|\___/
+       hello goodbye
 
-def paint_logo(fd: int) -> None:
-    text = LOGO
+""".lstrip("\n")
+
+
+def paint_text(fd: int, text: str) -> None:
     if fd != sys.stdout.fileno() and not text.endswith("\n"):
         text += "\n"
     payload = text.replace("\n", "\r\n").encode()
@@ -51,6 +58,31 @@ def paint_logo(fd: int) -> None:
         os.write(fd, payload)
     except OSError:
         pass
+
+
+def paint_logo(fd: int) -> None:
+    paint_text(fd, LOGO)
+
+
+def paint_goodbye(fd: int) -> None:
+    paint_text(fd, GOODBYE)
+
+
+# Interactive bash prints "exit" (login bash/zsh print "logout") on the way
+# out. The wrapper already has its own goodbye banner.
+_SHELL_BYE = (
+    b"exit\r\n",
+    b"exit\n",
+    b"logout\r\n",
+    b"logout\n",
+)
+
+
+def drop_shell_farewell(data: bytes) -> bytes:
+    for token in _SHELL_BYE:
+        if data.endswith(token):
+            return data[: -len(token)]
+    return data
 
 
 def winsize(fd: int) -> bytes:
@@ -72,14 +104,13 @@ def fg_pgrp(master: int) -> Optional[int]:
 
 
 def at_shell_prompt(master: int, shell_pgrp: int) -> bool:
-    """True iff the shell (not vim, less, …) owns the PTY foreground."""
+    """True iff the shell (not vim, less, ...) owns the PTY foreground."""
     pgrp = fg_pgrp(master)
     return pgrp is not None and pgrp == shell_pgrp
 
 
 class MuxApp:
     """Skeleton for an application muxed into the same glass.
-
     Keep the shell PTY alive. Read/write the app through `master` when
     `active`. Replace spawn/close with the real program later.
     """
@@ -139,7 +170,7 @@ def wrap_shell() -> int:
     shell = os.environ.get("SHELL", "/bin/bash")
     shell_pid, shell_master = pty.fork()
     if shell_pid == 0:
-        os.execvp(shell, [shell, "-l"])
+        os.execvp(shell, [shell, "-l"]) # Interactive or login, not login. An interactive shell prints "exit" while a login shell (`-l`) prints "logout" on exit.
 
     try:
         set_winsize(shell_master, winsize(stdin_fd))
@@ -169,18 +200,15 @@ def wrap_shell() -> int:
                     pass
 
     signal.signal(signal.SIGWINCH, on_winch)
-
     old = termios.tcgetattr(stdin_fd)
     tty.setraw(stdin_fd)
     rest = b""
-
     try:
         while True:
             fds = [stdin_fd, shell_master]
             if mux.master is not None:
                 fds.append(mux.master)
             r, _, _ = select.select(fds, [], [])
-
             if stdin_fd in r:
                 try:
                     data = os.read(stdin_fd, 1024)
@@ -192,40 +220,32 @@ def wrap_shell() -> int:
                     break
                 data = rest + data
                 rest = b""
-
                 if INVOKE and INVOKE in data:
                     pre, _, post = data.partition(INVOKE)
-                    # Always deliver bytes that arrived before the hotkey
-                    # to whoever currently owns input (mux app or shell).
                     dest = mux.master if (mux.active and mux.master) else shell_master
                     if pre:
                         try:
                             os.write(dest, pre)
                         except OSError:
                             pass
-                    # Hotkey is only live at the shell prompt, or while
-                    # already muxed (so you can toggle back out).
-                    if mux.active or at_shell_prompt(shell_master, shell_pgrp):
+                    if at_shell_prompt(shell_master, shell_pgrp):
                         if mux.active:
                             mux.close(shell_master)
                         else:
                             mux.spawn(stdin_fd, shell_master)
                     else:
-                        # In vim/less/etc.: treat as a normal NUL / key.
                         try:
                             os.write(dest, INVOKE)
                         except OSError:
                             pass
                     rest = post
                     continue
-
                 dest = mux.master if (mux.active and mux.master) else shell_master
                 try:
                     os.write(dest, data)
                 except OSError:
                     if mux.active:
                         mux.close(shell_master)
-
             if mux.master is not None and mux.master in r:
                 try:
                     out = os.read(mux.master, 4096)
@@ -238,7 +258,6 @@ def wrap_shell() -> int:
                         os.write(stdout_fd, out)
                     except OSError:
                         break
-
             if shell_master in r:
                 try:
                     out = os.read(shell_master, 4096)
@@ -246,8 +265,9 @@ def wrap_shell() -> int:
                     break
                 if not out:
                     break
-                # Shell PTY stays on the glass even while muxed, unless
-                # you later decide the overlay owns the screen exclusively.
+                out = drop_shell_farewell(out)
+                if not out:
+                    break
                 try:
                     os.write(stdout_fd, out)
                 except OSError:
@@ -263,6 +283,7 @@ def wrap_shell() -> int:
             os.waitpid(shell_pid, 0)
         except OSError:
             pass
+        paint_goodbye(stdout_fd)
     return 0
 
 
