@@ -1,18 +1,15 @@
 #!/usr/bin/env python3
 """
-
 Pass-through PTY wrapper around $SHELL with a mux hook.
 The shell stays on its own PTY for the life of the wrapper. Ctrl-Space is
 only honored when that PTY's foreground process group is the shell itself
 (so vim, less, pagers, etc. swallow the key like a normal terminal).
-On Ctrl-Space the wrapper toggles a muxed application overlay. The overlay
-is a stub in this skeleton: implement spawn_app() / close_app() later.
-The shell PTY is never replaced.
-
-PTY_MUX_INVOKE=00  # default: Ctrl-Space (NUL)
-
+On Ctrl-Space the wrapper toggles a muxed application overlay.
+When mux is on and the shell owns the tty, "," is a leader key.
+",m" runs: hai models | fzf --prompt='model> ' | xargs -r hai model set
 """
 from __future__ import annotations
+
 import errno
 import fcntl
 import os
@@ -26,8 +23,21 @@ import tty
 from typing import Optional
 
 # Ctrl-Space is NUL (0x00) in most terminals. Override with hex, e.g. "00".
-# Ctrl-H is (0x08).
 INVOKE = bytes.fromhex(os.environ.get("PTY_MUX_INVOKE", "00"))
+
+LEADER = b","
+LEADER_TIMEOUT = 0.45
+LEADER_CMDS = {
+    b"m": (
+        b"hai model ls | fzf --prompt='model> ' | xargs -r hai model set\n"
+    ),
+    b"c": (
+        b"hai ls | tail -n +2 | fzf --prompt='context> ' | awk '{print $1}' | xargs -r hai set\n"
+    ),
+    b"r": (
+        b"hai reset\n"
+    ),
+}
 
 LOGO = r"""
   _           _ _ _
@@ -37,7 +47,6 @@ LOGO = r"""
  |_| |_|\__,_|_|_|_|\___/
         hello halo
      ctrl-space to hop
-
 """.lstrip("\n")
 
 GOODBYE = r"""
@@ -47,7 +56,6 @@ GOODBYE = r"""
  | | | | (_| | | | | (_) |
  |_| |_|\__,_|_|_|_|\___/
        hello goodbye
-
 """.lstrip("\n")
 
 
@@ -69,8 +77,6 @@ def paint_goodbye(fd: int) -> None:
     paint_text(fd, GOODBYE)
 
 
-# Interactive bash prints "exit" (login bash/zsh print "logout") on the way
-# out. The wrapper already has its own goodbye banner.
 _SHELL_BYE = (
     b"exit\r\n",
     b"exit\n",
@@ -95,7 +101,6 @@ def set_winsize(fd: int, raw: bytes) -> None:
 
 
 def fg_pgrp(master: int) -> Optional[int]:
-    """Foreground process group of the slave side of `master`."""
     try:
         packed = fcntl.ioctl(master, termios.TIOCGPGRP, struct.pack("i", 0))
         pgrp = struct.unpack("i", packed)[0]
@@ -105,37 +110,27 @@ def fg_pgrp(master: int) -> Optional[int]:
 
 
 def at_shell_prompt(master: int, shell_pgrp: int) -> bool:
-    """True iff the shell (not vim, less, ...) owns the PTY foreground."""
     pgrp = fg_pgrp(master)
     return pgrp is not None and pgrp == shell_pgrp
 
 
 class MuxApp:
-    """Skeleton for an application muxed into the same glass.
-    Keep the shell PTY alive. Read/write the app through `master` when
-    `active`. Replace spawn/close with the real program later.
-    """
-
     def __init__(self) -> None:
         self.pid: Optional[int] = None
         self.master: Optional[int] = None
         self.active = False
 
     def _announce(self, line: bytes, shell_master: int) -> None:
-        """Print `line` on its own row, then make the shell emit a new PS1."""
         try:
             os.write(sys.stdout.fileno(), line)
         except OSError:
             pass
-        # Empty accept: shell runs nothing and reprints the prompt.
         try:
             os.write(shell_master, b"\n")
         except OSError:
             pass
 
     def spawn(self, tty_fd: int, shell_master: int) -> None:
-        # Skeleton: no child process yet. Flip the flag so the I/O loop
-        # can be wired once a real PTY-backed app exists.
         self.active = True
         self._announce(b"haillo pty mux on", shell_master)
 
@@ -179,9 +174,9 @@ def wrap_shell() -> int:
         pass
     paint_logo(stdout_fd)
 
-    # Child of pty.fork() is session leader; its pgrp is the idle-shell fg.
     shell_pgrp = shell_pid
     mux = MuxApp()
+    leader_armed = False
 
     def on_winch(_signum, _frame) -> None:
         raw = winsize(stdin_fd)
@@ -204,12 +199,54 @@ def wrap_shell() -> int:
     old = termios.tcgetattr(stdin_fd)
     tty.setraw(stdin_fd)
     rest = b""
+
+    def flush_leader() -> None:
+        nonlocal leader_armed
+        if leader_armed:
+            try:
+                os.write(shell_master, LEADER)
+            except OSError:
+                pass
+            leader_armed = False
+
+    def handle_leader(data: bytes) -> bytes:
+        """Consume mux-mode leader sequences. Return leftover bytes."""
+        nonlocal leader_armed
+        out = bytearray()
+        i = 0
+        n = len(data)
+        while i < n:
+            ch = data[i : i + 1]
+            if leader_armed:
+                leader_armed = False
+                cmd = LEADER_CMDS.get(ch)
+                if cmd is not None:
+                    try:
+                        os.write(shell_master, cmd)
+                    except OSError:
+                        pass
+                else:
+                    out += LEADER + ch
+                i += 1
+                continue
+            if ch == LEADER:
+                leader_armed = True
+                i += 1
+                continue
+            out += ch
+            i += 1
+        return bytes(out)
+
     try:
         while True:
             fds = [stdin_fd, shell_master]
             if mux.master is not None:
                 fds.append(mux.master)
-            r, _, _ = select.select(fds, [], [])
+            timeout = LEADER_TIMEOUT if leader_armed else None
+            r, _, _ = select.select(fds, [], [], timeout)
+            if not r:
+                flush_leader()
+                continue
             if stdin_fd in r:
                 try:
                     data = os.read(stdin_fd, 1024)
@@ -222,6 +259,7 @@ def wrap_shell() -> int:
                 data = rest + data
                 rest = b""
                 if INVOKE and INVOKE in data:
+                    flush_leader()
                     pre, _, post = data.partition(INVOKE)
                     dest = mux.master if (mux.active and mux.master) else shell_master
                     if pre:
@@ -242,6 +280,12 @@ def wrap_shell() -> int:
                     rest = post
                     continue
                 dest = mux.master if (mux.active and mux.master) else shell_master
+                if mux.active and at_shell_prompt(shell_master, shell_pgrp):
+                    data = handle_leader(data)
+                else:
+                    flush_leader()
+                if not data:
+                    continue
                 try:
                     os.write(dest, data)
                 except OSError:
