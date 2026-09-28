@@ -37,6 +37,14 @@ LEADER_CMDS = {
     b"r": (
         b"hai reset\n"
     ),
+    b"a": (
+        b"st=$(hai assist status | tr -d '[:space:]'); "
+        b"if [ \"$st\" = True ] || [ \"$st\" = true ]; then "
+        b"hai assist stop; echo haillo assist off; "
+        b"else "
+        b"hai assist start; echo haillo assist on; "
+        b"fi\n"
+    ),
 }
 
 LOGO = r"""
@@ -47,6 +55,7 @@ LOGO = r"""
  |_| |_|\__,_|_|_|_|\___/
         hello halo
      ctrl-space to hop
+
 """.lstrip("\n")
 
 GOODBYE = r"""
@@ -56,6 +65,7 @@ GOODBYE = r"""
  | | | | (_| | | | | (_) |
  |_| |_|\__,_|_|_|_|\___/
        hello goodbye
+
 """.lstrip("\n")
 
 
