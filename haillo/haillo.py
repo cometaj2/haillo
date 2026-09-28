@@ -31,6 +31,9 @@ LEADER_CMDS = {
     b"m": (
         b"hai model ls | fzf --prompt='model> ' | xargs -r hai model set\n"
     ),
+    b"p": (
+        b"hai provider ls | fzf --prompt='provider> ' | xargs -r hai provider set\n"
+    ),
     b"c": (
         b"hai ls | tail -n +2 | fzf --prompt='context> ' | awk '{print $1}' | xargs -r hai set\n"
     ),
@@ -44,6 +47,9 @@ LEADER_CMDS = {
         b"else "
         b"hai assist start; echo haillo assist on; "
         b"fi\n"
+    ),
+    b"s": (
+        b"hai context\n"
     ),
 }
 
