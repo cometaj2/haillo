@@ -35,17 +35,25 @@ LEADER_CMDS = {
         b"hai provider ls | fzf --prompt='provider> ' | xargs -r hai provider set\n"
     ),
     b"c": (
-        b"hai ls | tail -n +2 | fzf --prompt='context> ' | awk '{print $1}' | xargs -r hai set\n"
+        b"hai ls | tail -n +2 | tac | fzf --prompt='context> ' | awk '{print $1}' | xargs -r hai set\n"
     ),
     b"r": (
         b"hai reset\n"
     ),
-    b"a": (
+    b"v": (
         b"st=$(hai assist status | tr -d '[:space:]'); "
         b"if [ \"$st\" = True ] || [ \"$st\" = true ]; then "
-        b"hai assist stop; echo haillo assist off; "
+        b"hai assist stop; echo '\nvoice assist off\n'; "
         b"else "
-        b"hai assist start; echo haillo assist on; "
+        b"hai assist start; echo '\nvoice assist on\n'; "
+        b"fi\n"
+    ),
+    b"a": (
+        b"st=$(hai agent status | tr -d '[:space:]'); "
+        b"if [ \"$st\" = True ] || [ \"$st\" = true ]; then "
+        b"hai agent stop; echo '\nagent off\n'; "
+        b"else "
+        b"hai agent start; echo '\nagent on\n'; "
         b"fi\n"
     ),
     b"s": (
