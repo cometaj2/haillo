@@ -102,35 +102,54 @@ def __validate_bash_command(command_string, whitelist):
         return False
 
 
+"""Fetch plan from hai, show it to the user, and inject the command if allowed."""
 def __proposed_commands(shell_master: int) -> None:
-    chunks = cli("hai agent plan")
-    plan_str = ""
-    for dest, chunk in chunks:
-        if dest == 'stdout':
-            plan_str += chunk.decode()
-
     try:
+        chunks = cli("hai agent plan")
+        plan_str = b"".join(c for d, c in chunks if d == "stdout")
         plan = json.loads(plan_str)
-    except ValueError:
+    except Exception:
         return
 
     if not isinstance(plan, dict):
         return
 
-    bash = (plan.get("bash") or "").strip()
+    bash_cmd = (plan.get("bash") or "").strip()
+    goal = plan.get("goal", "")
+    why = plan.get("why", "")
 
     WHITELIST = frozenset({
-        "pwd", "ls", "echo", "grep", "curl", "cat", "head", "tail", "wc", "man", "hat", "huckle", "ddgr",
+        "pwd", "ls", "echo", "grep", "cat", "head", "tail", "wc",
+        "man", "hat", "huckle", "ddgr",
     })
 
-    fd = sys.stdout.fileno()
-    paint_text(fd, "\n")
-    paint_text(fd, "plan: " + str(plan_str) + "\n")
-    paint_text(fd, "whitelist: " + str(WHITELIST) + "\n")
-    paint_text(fd, "proposed command: " + bash + "\n")
-    if not __validate_bash_command(bash, WHITELIST):
-        return
-    os.write(shell_master, bash.encode("utf-8") + b" | hai agent next\n")
+    # Build feedback lines
+    lines = ["\r\n# --- hai agent plan ---"]
+    if goal:
+        lines.append(f"# goal: {goal}")
+    if why:
+        lines.append(f"# why:  {why}")
+    lines.append(f"# proposed: {bash_cmd or '(none)'}")
+
+    allowed = False
+    if bash_cmd:
+        if __validate_bash_command(bash_cmd, WHITELIST):
+            lines.append("# status: allowed (whitelisted)")
+            allowed = True
+        else:
+            lines.append("# status: BLOCKED (not in whitelist)")
+    else:
+        lines.append("# status: no command proposed")
+
+    feedback = "\n".join(lines).encode("utf-8")
+
+    try:
+        os.write(shell_master, feedback)
+        if allowed:
+            os.write(shell_master, (bash_cmd + " | hai agent next\n").encode("utf-8"))
+    except OSError:
+        pass
+
 
 LEADER_PY: dict[bytes, Callable[[int], None]] = {
     b"g": __proposed_commands,
