@@ -20,11 +20,10 @@ import struct
 import sys
 import termios
 import tty
-from typing import Optional
+from typing import Callable, Optional
 
 # Ctrl-Space is NUL (0x00) in most terminals. Override with hex, e.g. "00".
 INVOKE = bytes.fromhex(os.environ.get("PTY_MUX_INVOKE", "00"))
-
 LEADER = b","
 LEADER_TIMEOUT = 0.45
 LEADER_CMDS = {
@@ -61,6 +60,16 @@ LEADER_CMDS = {
     ),
 }
 
+
+def _py_example(shell_master: int) -> None:
+    paint_text(sys.stdout.fileno(), "hello from python\n")
+
+
+# leader + key -> callable in this process (not injected into $SHELL)
+LEADER_PY: dict[bytes, Callable[[int], None]] = {
+    b"x": _py_example,
+}
+
 LOGO = r"""
   _           _ _ _
  | |__   __ _(_) | | ___
@@ -71,7 +80,6 @@ LOGO = r"""
      ctrl-space to hop
 
 """.lstrip("\n")
-
 GOODBYE = r"""
   _           _ _ _
  | |__   __ _(_) | | ___
@@ -186,18 +194,15 @@ def wrap_shell() -> int:
     if not os.isatty(stdin_fd):
         sys.stderr.write("pty_mux: stdin is not a tty\n")
         return 1
-
     shell = os.environ.get("SHELL", "/bin/bash")
     shell_pid, shell_master = pty.fork()
     if shell_pid == 0:
         os.execvp(shell, [shell, "-l"])
-
     try:
         set_winsize(shell_master, winsize(stdin_fd))
     except OSError:
         pass
     paint_logo(stdout_fd)
-
     shell_pgrp = shell_pid
     mux = MuxApp()
     leader_armed = False
@@ -243,14 +248,21 @@ def wrap_shell() -> int:
             ch = data[i : i + 1]
             if leader_armed:
                 leader_armed = False
-                cmd = LEADER_CMDS.get(ch)
-                if cmd is not None:
+                py = LEADER_PY.get(ch)
+                if py is not None:
                     try:
-                        os.write(shell_master, cmd)
-                    except OSError:
-                        pass
+                        py(shell_master)
+                    except Exception as e:
+                        paint_text(stdout_fd, f"leader py error: {e}\n")
                 else:
-                    out += LEADER + ch
+                    cmd = LEADER_CMDS.get(ch)
+                    if cmd is not None:
+                        try:
+                            os.write(shell_master, cmd)
+                        except OSError:
+                            pass
+                    else:
+                        out += LEADER + ch
                 i += 1
                 continue
             if ch == LEADER:
