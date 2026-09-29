@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "haillo"
 dynamic = ["version", "dependencies"]
-description = "Haillo is a VIM terminal UI plugin for hai (hcli_hai), the HCLI command line AI chat application."
+description = "Haillo is a pseudo-terminal multiplexer for hai (hcli_hai), the HCLI command line AI chat and agent application."
 readme = "README.rst"
 authors = [{name = "Jeff Michaud", email = "cometaj2@proton.me"}]
 license = { file = "LICENSE.txt" }
@@ -20,7 +20,7 @@ classifiers = [
     "Programming Language :: Python :: 3.13",
     "Programming Language :: Python :: 3.14"
 ]
-keywords = ["ai", "llm", "web", "ui", "cli", "client", "server", "connector", "hypermedia", "rest", "generic", "development"]
+keywords = ["bash", "terminal", "agent", "ai", "llm", "web", "ui", "cli", "client", "server", "connector", "hypermedia", "rest", "generic", "development"]
 
 [project.urls]
 Homepage = "https://github.com/cometaj2/haillo"
