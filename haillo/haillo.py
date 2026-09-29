@@ -20,6 +20,9 @@ import struct
 import sys
 import termios
 import tty
+import bashlex
+import json
+from huckle import cli, stdin
 from typing import Callable, Optional
 
 # Ctrl-Space is NUL (0x00) in most terminals. Override with hex, e.g. "00".
@@ -60,14 +63,69 @@ LEADER_CMDS = {
     ),
 }
 
+def __validate_bash_command(command_string, whitelist):
+    try:
+        # Parse the string into a Bash AST
+        trees = bashlex.parse(command_string)
+    except bashlex.errors.ParsingError:
+        return False  # Invalid Bash syntax
 
-def _py_example(shell_master: int) -> None:
-    paint_text(sys.stdout.fileno(), "hello from python\n")
+    def check_node(node):
+        # If the node represents an executed command
+        if node.kind == 'command':
+            # Extract the base command name (e.g., 'git' from 'git commit')
+            parts = node.parts
+            if parts and parts[0].kind == 'word':
+                command_name = parts[0].word
+                if command_name not in whitelist:
+                    fd = sys.stdout.fileno()
+                    paint_text(fd, f"unauthorized command detected: {command_name}\n")
+                    raise ValueError(f"unauthorized command detected: {command_name}")
 
+        # Recursively check sub-commands (like inside pipes or subshells)
+        if hasattr(node, 'parts'):
+            for part in node.parts:
+                check_node(part)
+
+    try:
+        for tree in trees:
+            check_node(tree)
+        return True
+    except ValueError:
+        return False
+
+
+def __proposed_commands(shell_master: int) -> None:
+    chunks = cli("hai agent plan")
+    plan_str = ""
+    for dest, chunk in chunks:
+        if dest == 'stdout':
+            plan_str += chunk.decode()
+
+    try:
+        plan = json.loads(plan_str)
+    except ValueError:
+        return
+
+    if not isinstance(plan, dict):
+        return
+
+    bash = (plan.get("bash") or "").strip()
+
+    whitelist = {"echo", "ls", "grep", "curl"}
+
+    fd = sys.stdout.fileno()
+    paint_text(fd, "\n")
+    paint_text(fd, "plan: " + str(plan_str) + "\n")
+    paint_text(fd, "whitelist: " + str(whitelist) + "\n")
+    paint_text(fd, "proposed command: " + bash + "\n")
+    if not __validate_bash_command(bash, whitelist):
+        return
+    os.write(shell_master, b"\n")
 
 # leader + key -> callable in this process (not injected into $SHELL)
 LEADER_PY: dict[bytes, Callable[[int], None]] = {
-    b"x": _py_example,
+    b"x": __proposed_commands,
 }
 
 LOGO = r"""
@@ -366,6 +424,7 @@ def wrap_shell() -> int:
             pass
         paint_goodbye(stdout_fd)
     return 0
+
 
 
 def main() -> int:
