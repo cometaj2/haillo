@@ -118,7 +118,9 @@ def __proposed_commands(shell_master: int) -> None:
 
     bash = (plan.get("bash") or "").strip()
 
-    whitelist = {"echo", "ls", "grep", "curl"}
+    WHITELIST = frozenset({
+        "pwd", "ls", "echo", "grep", "curl", "cat", "head", "tail", "wc", "man",
+    })
 
     fd = sys.stdout.fileno()
     paint_text(fd, "\n")
@@ -129,9 +131,8 @@ def __proposed_commands(shell_master: int) -> None:
         return
     os.write(shell_master, b"\n")
 
-# leader + key -> callable in this process (not injected into $SHELL)
 LEADER_PY: dict[bytes, Callable[[int], None]] = {
-    b"x": __proposed_commands,
+    b"g": __proposed_commands,
 }
 
 LOGO = r"""
