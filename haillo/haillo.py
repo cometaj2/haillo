@@ -28,6 +28,7 @@ import termios
 import tty
 import bashlex
 import json
+import time
 from huckle import cli, stdin
 from typing import Callable, Optional
 
@@ -119,17 +120,17 @@ def __proposed_commands(shell_master: int) -> None:
     bash = (plan.get("bash") or "").strip()
 
     WHITELIST = frozenset({
-        "pwd", "ls", "echo", "grep", "curl", "cat", "head", "tail", "wc", "man",
+        "pwd", "ls", "echo", "grep", "curl", "cat", "head", "tail", "wc", "man", "hat", "huckle", "ddgr",
     })
 
     fd = sys.stdout.fileno()
     paint_text(fd, "\n")
     paint_text(fd, "plan: " + str(plan_str) + "\n")
-    paint_text(fd, "whitelist: " + str(whitelist) + "\n")
+    paint_text(fd, "whitelist: " + str(WHITELIST) + "\n")
     paint_text(fd, "proposed command: " + bash + "\n")
-    if not __validate_bash_command(bash, whitelist):
+    if not __validate_bash_command(bash, WHITELIST):
         return
-    os.write(shell_master, b"\n")
+    os.write(shell_master, bash.encode("utf-8") + b" | hai agent next\n")
 
 LEADER_PY: dict[bytes, Callable[[int], None]] = {
     b"g": __proposed_commands,
@@ -162,6 +163,7 @@ def paint_text(fd: int, text: str) -> None:
     payload = text.replace("\n", "\r\n").encode()
     try:
         os.write(fd, payload)
+        time.sleep(0.1)
     except OSError:
         pass
 
