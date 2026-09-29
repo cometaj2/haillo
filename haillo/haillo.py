@@ -1,12 +1,18 @@
 #!/usr/bin/env python3
 """
+
 Pass-through PTY wrapper around $SHELL with a mux hook.
+
 The shell stays on its own PTY for the life of the wrapper. Ctrl-Space is
 only honored when that PTY's foreground process group is the shell itself
 (so vim, less, pagers, etc. swallow the key like a normal terminal).
+
 On Ctrl-Space the wrapper toggles a muxed application overlay.
+
 When mux is on and the shell owns the tty, "," is a leader key.
-",m" runs: hai models | fzf --prompt='model> ' | xargs -r hai model set
+
+See LEADER_CMDS and LEADER_PY
+
 """
 from __future__ import annotations
 
