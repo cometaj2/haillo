@@ -118,7 +118,7 @@ def __proposed_commands(shell_master: int) -> None:
     why = plan.get("why", "")
 
     WHITELIST = frozenset({
-        "pwd", "ls", "echo", "grep", "cat", "head", "tail", "wc",
+        "pwd", "ls", "echo", "grep", "curl", "cat", "head", "tail", "wc",
         "man", "hat", "huckle", "ddgr",
     })
 
