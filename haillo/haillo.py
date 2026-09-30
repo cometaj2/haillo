@@ -86,7 +86,6 @@ def __validate_bash_command(command_string, whitelist):
                 command_name = parts[0].word
                 if command_name not in whitelist:
                     fd = sys.stdout.fileno()
-                    paint_text(fd, f"unauthorized command detected: {command_name}\n")
                     raise ValueError(f"unauthorized command detected: {command_name}")
 
         # Recursively check sub-commands (like inside pipes or subshells)
@@ -122,34 +121,48 @@ def __proposed_commands(shell_master: int) -> None:
         "man", "hat", "huckle", "ddgr",
     })
 
+    authz_lines = []
     lines = ["# --- hai agent plan ---"]
     if goal:
         lines.append(f"# goal: {goal}")
     if why:
         lines.append(f"# why:  {why}")
-    lines.append(f"# proposed: {bash_cmd or '(none)'}")
+    lines.append(f"# command: {bash_cmd or '(none)'}")
 
     allowed = False
     if bash_cmd:
         if __validate_bash_command(bash_cmd, WHITELIST):
-            lines.append("# status: allowed (whitelisted)")
+            authz_lines.append("# status: authorized (whitelisted)")
             allowed = True
         else:
-            lines.append("# status: BLOCKED (not in whitelist)")
+            authz_lines.append("# status: BLOCKED (not in whitelist)")
     else:
         lines.append("# status: no command proposed")
 
     # Build a single-line printf command (no newlines in the shell command itself)
+    printf_authz_args = " ".join(f'"{line}"' for line in authz_lines)
     printf_args = " ".join(f'"{line}"' for line in lines)
-    gum = (
+
+    gum_lines = (
         f'gum style --border rounded --width $(tput cols) '
-        f'--padding "0 1" "$(printf \'%s\\n\' {printf_args})"\n'
+        f'--padding "0 1" "$(printf \'%s\\n\' {printf_args})";'
+    )
+    gum_authz_lines = (
+        f'gum style --border rounded --width $(tput cols) '
+        f'--padding "0 1" "$(printf \'%s\\n\' {printf_authz_args})";'
+    )
+
+    # Combine into a single command so no prompt appears between them
+    combined_cmd = (
+        b""
+        + gum_lines.encode("utf-8")
+        + gum_authz_lines.encode("utf-8")
+        + b"stty echo\n"
     )
 
     try:
         os.write(shell_master, b"stty -echo\n")
-        os.write(shell_master, gum.encode("utf-8"))
-        os.write(shell_master, b"stty echo\n")
+        os.write(shell_master, combined_cmd)
         if allowed:
             os.write(shell_master, (bash_cmd + " | hai agent next\n").encode("utf-8"))
     except OSError:
