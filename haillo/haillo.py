@@ -101,8 +101,6 @@ def __validate_bash_command(command_string, whitelist):
     except ValueError:
         return False
 
-
-
 """Fetch plan from hai, show it to the user, and inject the command if allowed."""
 def __proposed_commands(shell_master: int) -> None:
     try:
@@ -156,69 +154,6 @@ def __proposed_commands(shell_master: int) -> None:
             os.write(shell_master, (bash_cmd + " | hai agent next\n").encode("utf-8"))
     except OSError:
         pass
-
-
-
-
-
-
-
-
-
-
-
-
-# """Fetch plan from hai, show it to the user, and inject the command if allowed."""
-# def __proposed_commands(shell_master: int) -> None:
-#     try:
-#         chunks = cli("hai agent plan")
-#         plan_str = b"".join(c for d, c in chunks if d == "stdout")
-#         plan = json.loads(plan_str)
-#     except Exception:
-#         return
-# 
-#     if not isinstance(plan, dict):
-#         return
-# 
-#     bash_cmd = (plan.get("bash") or "").strip()
-#     goal = plan.get("goal", "")
-#     why = plan.get("why", "")
-# 
-#     WHITELIST = frozenset({
-#         "pwd", "ls", "echo", "grep", "cat", "head", "tail", "wc",
-#         "man", "hat", "huckle", "ddgr",
-#     })
-# 
-#     # Build feedback lines
-#     lines = ["\r\n# --- hai agent plan ---"]
-#     if goal:
-#         lines.append(f"# goal: {goal}")
-#     if why:
-#         lines.append(f"# why:  {why}")
-#     lines.append(f"# proposed: {bash_cmd or '(none)'}")
-# 
-#     allowed = False
-#     if bash_cmd:
-#         if __validate_bash_command(bash_cmd, WHITELIST):
-#             lines.append("# status: allowed (whitelisted)")
-#             allowed = True
-#         else:
-#             lines.append("# status: BLOCKED (not in whitelist)")
-#     else:
-#         lines.append("# status: no command proposed")
-# 
-#     feedback = "\n".join(lines)
-# 
-#     try:
-#         gum = f'gum style --border rounded --width $(tput cols) --margin "0 0" --padding "0 1" "' + feedback + '"\n'
-# 
-#         os.write(shell_master, b"stty -echo\n")
-#         os.write(shell_master, gum.encode("utf-8"))
-#         os.write(shell_master, b"stty echo\n")
-#         if allowed:
-#             os.write(shell_master, (bash_cmd + " | hai agent next\n").encode("utf-8"))
-#     except OSError:
-#         pass
 
 
 LEADER_PY: dict[bytes, Callable[[int], None]] = {
