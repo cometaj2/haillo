@@ -141,10 +141,14 @@ def __proposed_commands(shell_master: int) -> None:
     else:
         lines.append("# status: no command proposed")
 
-    feedback = "\n".join(lines).encode("utf-8")
+    feedback = "\n".join(lines)
 
     try:
-        os.write(shell_master, feedback)
+        gum = f'gum style --border rounded --width $(tput cols) --margin "0 0" --padding "0 1" "' + feedback + '"\n'
+
+        os.write(shell_master, b"stty -echo\n")
+        os.write(shell_master, gum.encode("utf-8"))
+        os.write(shell_master, b"stty echo\n")
         if allowed:
             os.write(shell_master, (bash_cmd + " | hai agent next\n").encode("utf-8"))
     except OSError:
