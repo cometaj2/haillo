@@ -50,15 +50,15 @@ LEADER_CMDS = {
         b"hai reset\n"
     ),
     b"v": (
-        b"st=$(hai assist status | tr -d '[:space:]'); "
+        b"st=$(hai voice enabled | tr -d '[:space:]'); "
         b"if [ \"$st\" = True ] || [ \"$st\" = true ]; then "
-        b"hai assist stop; echo '\nvoice assist off\n'; "
+        b"hai voice stop; echo '\nvoice assist off\n'; "
         b"else "
-        b"hai assist start; echo '\nvoice assist on\n'; "
+        b"hai voice start; echo '\nvoice assist on\n'; "
         b"fi\n"
     ),
     b"a": (
-        b"st=$(hai agent status | tr -d '[:space:]'); "
+        b"st=$(hai agent enabled | tr -d '[:space:]'); "
         b"if [ \"$st\" = True ] || [ \"$st\" = true ]; then "
         b"hai agent stop; echo '\nagent off\n'; "
         b"else "
@@ -118,7 +118,7 @@ def __proposed_commands(shell_master: int) -> None:
 
     WHITELIST = frozenset({
         "pwd", "ls", "echo", "grep", "curl", "cat", "head", "tail", "wc",
-        "man", "hat", "huckle", "ddgr",
+        "man", "hat", "huckle", "ddgr", "git",
     })
 
     authz_lines = []
