@@ -171,9 +171,40 @@ def __proposed_commands(shell_master: int) -> None:
     except OSError:
         pass
 
+    return allowed
+
+def __run_plan_to_completion(shell_master: int) -> None:
+    """Run plans repeatedly like ,i. Stops automatically when no command remains.
+    Handles Ctrl+C and guarantees 'stty echo' is restored.
+    """
+    MAX_STEPS = 30
+    interrupted = False
+
+    def restore_echo():
+        try:
+            os.write(shell_master, b"stty echo\n")
+        except OSError:
+            pass
+
+    try:
+        for _ in range(MAX_STEPS):
+            did_work = __proposed_commands(shell_master)
+            if not did_work:
+                break
+    except KeyboardInterrupt:
+        interrupted = True
+    finally:
+        restore_echo()
+        if interrupted:
+            try:
+                os.write(sys.stdout.fileno(), b"\r\n# Interrupted by Ctrl+C\r\n")
+            except OSError:
+                pass
+
 
 LEADER_PY: dict[bytes, Callable[[int], None]] = {
-    b"g": __proposed_commands,
+    b"i": __proposed_commands,
+    b"g": __run_plan_to_completion,
 }
 
 LOGO = r"""
