@@ -1,21 +1,14 @@
 #!/usr/bin/env python3
 """
-
 Pass-through PTY wrapper around $SHELL with a mux hook.
-
 The shell stays on its own PTY for the life of the wrapper. Ctrl-Space is
 only honored when that PTY's foreground process group is the shell itself
 (so vim, less, pagers, etc. swallow the key like a normal terminal).
-
 On Ctrl-Space the wrapper toggles a muxed application overlay.
-
 When mux is on and the shell owns the tty, "," is a leader key.
-
 See LEADER_CMDS and LEADER_PY
-
 """
 from __future__ import annotations
-
 import errno
 import fcntl
 import os
@@ -36,6 +29,7 @@ from typing import Callable, Optional
 INVOKE = bytes.fromhex(os.environ.get("PTY_MUX_INVOKE", "00"))
 LEADER = b","
 LEADER_TIMEOUT = 0.45
+POLL = 1.0
 LEADER_CMDS = {
     b"m": (
         b"hai model ls | fzf --prompt='model> ' | xargs -r hai model set\n"
@@ -73,13 +67,13 @@ LEADER_CMDS = {
     ),
 }
 
+
 def __validate_bash_command(command_string, whitelist):
     try:
         # Parse the string into a Bash AST
         trees = bashlex.parse(command_string)
     except bashlex.errors.ParsingError:
         return False  # Invalid Bash syntax
-
     def check_node(node):
         # If the node represents an executed command
         if node.kind == 'command':
@@ -90,12 +84,10 @@ def __validate_bash_command(command_string, whitelist):
                 if command_name not in whitelist:
                     fd = sys.stdout.fileno()
                     raise ValueError(f"unauthorized command detected: {command_name}")
-
         # Recursively check sub-commands (like inside pipes or subshells)
         if hasattr(node, 'parts'):
             for part in node.parts:
                 check_node(part)
-
     try:
         for tree in trees:
             check_node(tree)
@@ -103,35 +95,31 @@ def __validate_bash_command(command_string, whitelist):
     except ValueError:
         return False
 
-"""Fetch plan from hai, show it to the user, and inject the command if allowed."""
-def __proposed_commands(shell_master: int) -> None:
+
+"""Fetch task from hai, show it to the user, and inject the command if allowed."""
+def __proposed_commands(shell_master: int) -> bool:
     try:
-        chunks = cli("hai agent plan")
-        plan_str = b"".join(c for d, c in chunks if d == "stdout")
-        plan = json.loads(plan_str)
+        chunks = cli("hai agent task")
+        task_str = b"".join(c for d, c in chunks if d == "stdout")
+        task = json.loads(task_str)
     except Exception:
-        return
-
-    if not isinstance(plan, dict):
-        return
-
-    bash_cmd = (plan.get("bash") or "").strip()
-    goal = plan.get("goal", "")
-    why = plan.get("why", "")
-
+        return False
+    if not isinstance(task, dict):
+        return False
+    bash_cmd = (task.get("bash") or "").strip()
+    goal = task.get("goal", "")
+    why = task.get("why", "")
     WHITELIST = frozenset({
         "pwd", "ls", "echo", "grep", "curl", "cat", "head", "tail", "wc",
         "man", "hat", "huckle", "ddgr", "git",
     })
-
     authz_lines = []
-    lines = ["# --- hai agent plan ---"]
+    lines = ["# --- hai agent task ---"]
     if goal:
         lines.append(f"# goal: {goal}")
     if why:
         lines.append(f"# why:  {why}")
     lines.append(f"# command: {bash_cmd or '(none)'}")
-
     allowed = False
     if bash_cmd:
         if __validate_bash_command(bash_cmd, WHITELIST):
@@ -141,11 +129,9 @@ def __proposed_commands(shell_master: int) -> None:
             authz_lines.append("# status: BLOCKED (not in whitelist)")
     else:
         lines.append("# status: no command proposed")
-
     # Build a single-line printf command (no newlines in the shell command itself)
     printf_authz_args = " ".join(f'"{line}"' for line in authz_lines)
     printf_args = " ".join(f'"{line}"' for line in lines)
-
     gum_lines = (
         f'gum style --border rounded --width $(tput cols) '
         f'--padding "0 1" "$(printf \'%s\\n\' {printf_args})";'
@@ -154,7 +140,6 @@ def __proposed_commands(shell_master: int) -> None:
         f'gum style --border rounded --width $(tput cols) '
         f'--padding "0 1" "$(printf \'%s\\n\' {printf_authz_args})";'
     )
-
     # Combine into a single command so no prompt appears between them
     combined_cmd = (
         b""
@@ -162,51 +147,84 @@ def __proposed_commands(shell_master: int) -> None:
         + gum_authz_lines.encode("utf-8")
         + b"stty echo\n"
     )
-
     try:
         os.write(shell_master, b"stty -echo\n")
         os.write(shell_master, combined_cmd)
         if allowed:
             os.write(shell_master, (bash_cmd + " | hai agent next\n").encode("utf-8"))
     except OSError:
-        pass
-
+        return False
     return allowed
 
-def __run_plan_to_completion(shell_master: int) -> None:
-    """Run plans repeatedly like ,i. Stops automatically when no command remains.
-    Handles Ctrl+C and guarantees 'stty echo' is restored.
-    """
-    MAX_STEPS = 30
-    interrupted = False
 
+def __forward(shell_master: int, seconds: float) -> bool:
+    """Wait, but keep the shell tty alive. True means the user hit Ctrl-C."""
+    stdin_fd = sys.stdin.fileno()
+    stdout_fd = sys.stdout.fileno()
+    end = time.monotonic() + seconds
+    while True:
+        remaining = end - time.monotonic()
+        if remaining <= 0:
+            return False
+        try:
+            ready, _, _ = select.select([stdin_fd, shell_master], [], [], remaining)
+        except (InterruptedError, select.error):
+            continue
+        if not ready:
+            return False
+        if stdin_fd in ready:
+            try:
+                data = os.read(stdin_fd, 1024)
+            except OSError:
+                return True
+            if not data or b"\x03" in data:
+                return True
+            try:
+                os.write(shell_master, data)
+            except OSError:
+                pass
+        if shell_master in ready:
+            try:
+                out = os.read(shell_master, 4096)
+            except OSError:
+                return True
+            if not out:
+                return True
+            try:
+                os.write(stdout_fd, out)
+            except OSError:
+                return True
+
+
+def __run_task_to_completion(shell_master: int) -> None:
+    """Poll hai agent status once a second and inject a command when it is next.
+
+    The wait forwards shell output, so the wrapper select loop being paused
+    does not freeze the tty. Ctrl-C leaves the loop.
+    """
     def restore_echo():
         try:
             os.write(shell_master, b"stty echo\n")
         except OSError:
             pass
-
     try:
-        for _ in range(MAX_STEPS):
-            did_work = __proposed_commands(shell_master)
-            if not did_work:
+        while True:
+            chunks = cli("hai agent status")
+            status = b"".join(c for d, c in chunks if d == "stdout").decode().strip()
+            if status == "next":
+                if not __proposed_commands(shell_master):
+                    break
+            elif status in ("done", "blocked", "inactive", "idle"):
                 break
-    except KeyboardInterrupt:
-        interrupted = True
+            if __forward(shell_master, POLL):
+                break
     finally:
         restore_echo()
-        if interrupted:
-            try:
-                os.write(sys.stdout.fileno(), b"\r\n# Interrupted by Ctrl+C\r\n")
-            except OSError:
-                pass
-
 
 LEADER_PY: dict[bytes, Callable[[int], None]] = {
     b"i": __proposed_commands,
-    b"g": __run_plan_to_completion,
+    b"g": __run_task_to_completion,
 }
-
 LOGO = r"""
   _           _ _ _
  | |__   __ _(_) | | ___
@@ -226,8 +244,6 @@ GOODBYE = r"""
        hello goodbye
 
 """.lstrip("\n")
-
-
 def paint_text(fd: int, text: str) -> None:
     if fd != sys.stdout.fileno() and not text.endswith("\n"):
         text += "\n"
@@ -237,39 +253,25 @@ def paint_text(fd: int, text: str) -> None:
         time.sleep(0.1)
     except OSError:
         pass
-
-
 def paint_logo(fd: int) -> None:
     paint_text(fd, LOGO)
-
-
 def paint_goodbye(fd: int) -> None:
     paint_text(fd, GOODBYE)
-
-
 _SHELL_BYE = (
     b"exit\r\n",
     b"exit\n",
     b"logout\r\n",
     b"logout\n",
 )
-
-
 def drop_shell_farewell(data: bytes) -> bytes:
     for token in _SHELL_BYE:
         if data.endswith(token):
             return data[: -len(token)]
     return data
-
-
 def winsize(fd: int) -> bytes:
     return fcntl.ioctl(fd, termios.TIOCGWINSZ, b"\x00" * 8)
-
-
 def set_winsize(fd: int, raw: bytes) -> None:
     fcntl.ioctl(fd, termios.TIOCSWINSZ, raw)
-
-
 def fg_pgrp(master: int) -> Optional[int]:
     try:
         packed = fcntl.ioctl(master, termios.TIOCGPGRP, struct.pack("i", 0))
@@ -277,19 +279,14 @@ def fg_pgrp(master: int) -> Optional[int]:
         return pgrp if pgrp > 0 else None
     except OSError:
         return None
-
-
 def at_shell_prompt(master: int, shell_pgrp: int) -> bool:
     pgrp = fg_pgrp(master)
     return pgrp is not None and pgrp == shell_pgrp
-
-
 class MuxApp:
     def __init__(self) -> None:
         self.pid: Optional[int] = None
         self.master: Optional[int] = None
         self.active = False
-
     def _announce(self, line: bytes, shell_master: int) -> None:
         try:
             os.write(sys.stdout.fileno(), line)
@@ -299,11 +296,9 @@ class MuxApp:
             os.write(shell_master, b"\n")
         except OSError:
             pass
-
     def spawn(self, tty_fd: int, shell_master: int) -> None:
         self.active = True
         self._announce(b"haillo pty mux on", shell_master)
-
     def close(self, shell_master: Optional[int] = None) -> None:
         if self.master is not None:
             try:
@@ -324,8 +319,6 @@ class MuxApp:
         self.active = False
         if shell_master is not None:
             self._announce(b"haillo pty mux off", shell_master)
-
-
 def wrap_shell() -> int:
     stdin_fd = sys.stdin.fileno()
     stdout_fd = sys.stdout.fileno()
@@ -344,7 +337,6 @@ def wrap_shell() -> int:
     shell_pgrp = shell_pid
     mux = MuxApp()
     leader_armed = False
-
     def on_winch(_signum, _frame) -> None:
         raw = winsize(stdin_fd)
         try:
@@ -361,12 +353,10 @@ def wrap_shell() -> int:
                     os.kill(mux.pid, signal.SIGWINCH)
                 except OSError:
                     pass
-
     signal.signal(signal.SIGWINCH, on_winch)
     old = termios.tcgetattr(stdin_fd)
     tty.setraw(stdin_fd)
     rest = b""
-
     def flush_leader() -> None:
         nonlocal leader_armed
         if leader_armed:
@@ -375,7 +365,6 @@ def wrap_shell() -> int:
             except OSError:
                 pass
             leader_armed = False
-
     def handle_leader(data: bytes) -> bytes:
         """Consume mux-mode leader sequences. Return leftover bytes."""
         nonlocal leader_armed
@@ -410,7 +399,6 @@ def wrap_shell() -> int:
             out += ch
             i += 1
         return bytes(out)
-
     try:
         while True:
             fds = [stdin_fd, shell_master]
@@ -504,12 +492,7 @@ def wrap_shell() -> int:
             pass
         paint_goodbye(stdout_fd)
     return 0
-
-
-
 def main() -> int:
     return wrap_shell()
-
-
 if __name__ == "__main__":
     raise SystemExit(main())
