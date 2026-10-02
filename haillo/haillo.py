@@ -214,8 +214,8 @@ def __run_task_to_completion(shell_master: int) -> None:
             if status == "next":
                 if not __proposed_commands(shell_master):
                     break
-            elif status in ("done", "blocked", "inactive", "idle"):
-                break
+#             elif status in ("done", "blocked", "inactive", "idle"):
+#                 break
             if __forward(shell_master, POLL):
                 break
     finally:
