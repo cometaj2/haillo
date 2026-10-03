@@ -24,12 +24,12 @@ import json
 import time
 from huckle import cli, stdin
 from typing import Callable, Optional
-
 # Ctrl-Space is NUL (0x00) in most terminals. Override with hex, e.g. "00".
 INVOKE = bytes.fromhex(os.environ.get("PTY_MUX_INVOKE", "00"))
 LEADER = b","
 LEADER_TIMEOUT = 0.45
 POLL = 1.0
+SPIN = "|/-\\"
 LEADER_CMDS = {
     b"m": (
         b"hai model ls | fzf --prompt='model> ' | xargs -r hai model set\n"
@@ -68,6 +68,36 @@ LEADER_CMDS = {
 }
 
 
+class Spinner:
+    """One character at the cursor. Cleared before real output."""
+
+    def __init__(self, fd: int) -> None:
+        self.fd = fd
+        self.frame = 0
+        self.on = False
+
+    def tick(self) -> None:
+        ch = SPIN[self.frame % len(SPIN)].encode()
+        self.frame += 1
+        try:
+            if self.on:
+                os.write(self.fd, b"\x08" + ch)
+            else:
+                os.write(self.fd, b"\x1b[?25l" + ch)
+                self.on = True
+        except OSError:
+            pass
+
+    def clear(self) -> None:
+        if not self.on:
+            return
+        try:
+            os.write(self.fd, b"\x08 \x08\x1b[?25h")
+        except OSError:
+            pass
+        self.on = False
+
+
 def __validate_bash_command(command_string, whitelist):
     try:
         # Parse the string into a Bash AST
@@ -94,8 +124,6 @@ def __validate_bash_command(command_string, whitelist):
         return True
     except ValueError:
         return False
-
-
 """Fetch task from hai, show it to the user, and inject the command if allowed."""
 def __proposed_commands(shell_master: int) -> bool:
     try:
@@ -155,9 +183,7 @@ def __proposed_commands(shell_master: int) -> bool:
     except OSError:
         return False
     return allowed
-
-
-def __forward(shell_master: int, seconds: float) -> bool:
+def __forward(shell_master: int, seconds: float, spin: Optional[Spinner] = None) -> bool:
     """Wait, but keep the shell tty alive. True means the user hit Ctrl-C."""
     stdin_fd = sys.stdin.fileno()
     stdout_fd = sys.stdout.fileno()
@@ -166,12 +192,14 @@ def __forward(shell_master: int, seconds: float) -> bool:
         remaining = end - time.monotonic()
         if remaining <= 0:
             return False
+        if spin is not None:
+            spin.tick()
         try:
-            ready, _, _ = select.select([stdin_fd, shell_master], [], [], remaining)
+            ready, _, _ = select.select([stdin_fd, shell_master], [], [], min(0.1, remaining))
         except (InterruptedError, select.error):
             continue
         if not ready:
-            return False
+            continue
         if stdin_fd in ready:
             try:
                 data = os.read(stdin_fd, 1024)
@@ -190,37 +218,39 @@ def __forward(shell_master: int, seconds: float) -> bool:
                 return True
             if not out:
                 return True
+            if spin is not None:
+                spin.clear()
             try:
                 os.write(stdout_fd, out)
             except OSError:
                 return True
-
-
 def __run_task_to_completion(shell_master: int) -> None:
     """Poll hai agent status once a second and inject a command when it is next.
-
     The wait forwards shell output, so the wrapper select loop being paused
     does not freeze the tty. Ctrl-C leaves the loop.
     """
+    spin = Spinner(sys.stdout.fileno())
     def restore_echo():
+        spin.clear()
         try:
             os.write(shell_master, b"stty echo\n")
         except OSError:
             pass
     try:
         while True:
+            spin.tick()
             chunks = cli("hai agent status")
             status = b"".join(c for d, c in chunks if d == "stdout").decode().strip()
             if status == "next":
+                spin.clear()
                 if not __proposed_commands(shell_master):
                     break
             elif status in ("done", "blocked"):
                 break
-            if __forward(shell_master, POLL):
+            if __forward(shell_master, POLL, spin):
                 break
     finally:
         restore_echo()
-
 LEADER_PY: dict[bytes, Callable[[int], None]] = {
     b"i": __proposed_commands,
     b"g": __run_task_to_completion,
