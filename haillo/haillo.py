@@ -151,7 +151,7 @@ def __proposed_commands(shell_master: int) -> bool:
         os.write(shell_master, b"stty -echo\n")
         os.write(shell_master, combined_cmd)
         if allowed:
-            os.write(shell_master, (bash_cmd + " | hai agent next\n").encode("utf-8"))
+            os.write(shell_master, (bash_cmd + " | hai agent next && hai agent next mark\n").encode("utf-8"))
     except OSError:
         return False
     return allowed
@@ -214,8 +214,8 @@ def __run_task_to_completion(shell_master: int) -> None:
             if status == "next":
                 if not __proposed_commands(shell_master):
                     break
-#             elif status in ("done", "blocked", "inactive", "idle"):
-#                 break
+            elif status in ("done", "blocked"):
+                break
             if __forward(shell_master, POLL):
                 break
     finally:
