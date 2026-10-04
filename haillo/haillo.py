@@ -249,7 +249,7 @@ def __run_task_to_completion(shell_master: int) -> None:
             elif status in ("inactive", "done", "blocked"):
                 gum_lines = (
                     f'gum style --border rounded --width $(tput cols) '
-                    f'--padding "0 1" "# {status}";'
+                    f'--padding "0 1" "# agent {status}";'
                 )
 
                 combined_cmd = (
