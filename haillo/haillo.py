@@ -97,7 +97,6 @@ class Spinner:
             pass
         self.on = False
 
-
 def __validate_bash_command(command_string, whitelist):
     try:
         # Parse the string into a Bash AST
@@ -124,6 +123,7 @@ def __validate_bash_command(command_string, whitelist):
         return True
     except ValueError:
         return False
+
 """Fetch task from hai, show it to the user, and inject the command if allowed."""
 def __proposed_commands(shell_master: int) -> bool:
     try:
@@ -179,10 +179,11 @@ def __proposed_commands(shell_master: int) -> bool:
         os.write(shell_master, b"stty -echo\n")
         os.write(shell_master, combined_cmd)
         if allowed:
-            os.write(shell_master, (bash_cmd + " | hai agent next && hai agent next mark\n").encode("utf-8"))
+            os.write(shell_master, (bash_cmd + " | hai agent next\n").encode("utf-8"))
     except OSError:
         return False
     return allowed
+
 def __forward(shell_master: int, seconds: float, spin: Optional[Spinner] = None) -> bool:
     """Wait, but keep the shell tty alive. True means the user hit Ctrl-C."""
     stdin_fd = sys.stdin.fileno()
@@ -224,6 +225,7 @@ def __forward(shell_master: int, seconds: float, spin: Optional[Spinner] = None)
                 os.write(stdout_fd, out)
             except OSError:
                 return True
+
 def __run_task_to_completion(shell_master: int) -> None:
     """Poll hai agent status once a second and inject a command when it is next.
     The wait forwards shell output, so the wrapper select loop being paused
@@ -274,6 +276,7 @@ GOODBYE = r"""
        hello goodbye
 
 """.lstrip("\n")
+
 def paint_text(fd: int, text: str) -> None:
     if fd != sys.stdout.fileno() and not text.endswith("\n"):
         text += "\n"
@@ -283,25 +286,32 @@ def paint_text(fd: int, text: str) -> None:
         time.sleep(0.1)
     except OSError:
         pass
+
 def paint_logo(fd: int) -> None:
     paint_text(fd, LOGO)
+
 def paint_goodbye(fd: int) -> None:
     paint_text(fd, GOODBYE)
+
 _SHELL_BYE = (
     b"exit\r\n",
     b"exit\n",
     b"logout\r\n",
     b"logout\n",
 )
+
 def drop_shell_farewell(data: bytes) -> bytes:
     for token in _SHELL_BYE:
         if data.endswith(token):
             return data[: -len(token)]
     return data
+
 def winsize(fd: int) -> bytes:
     return fcntl.ioctl(fd, termios.TIOCGWINSZ, b"\x00" * 8)
+
 def set_winsize(fd: int, raw: bytes) -> None:
     fcntl.ioctl(fd, termios.TIOCSWINSZ, raw)
+
 def fg_pgrp(master: int) -> Optional[int]:
     try:
         packed = fcntl.ioctl(master, termios.TIOCGPGRP, struct.pack("i", 0))
@@ -309,9 +319,11 @@ def fg_pgrp(master: int) -> Optional[int]:
         return pgrp if pgrp > 0 else None
     except OSError:
         return None
+
 def at_shell_prompt(master: int, shell_pgrp: int) -> bool:
     pgrp = fg_pgrp(master)
     return pgrp is not None and pgrp == shell_pgrp
+
 class MuxApp:
     def __init__(self) -> None:
         self.pid: Optional[int] = None
@@ -349,6 +361,7 @@ class MuxApp:
         self.active = False
         if shell_master is not None:
             self._announce(b"haillo pty mux off", shell_master)
+
 def wrap_shell() -> int:
     stdin_fd = sys.stdin.fileno()
     stdout_fd = sys.stdout.fileno()
@@ -367,6 +380,7 @@ def wrap_shell() -> int:
     shell_pgrp = shell_pid
     mux = MuxApp()
     leader_armed = False
+
     def on_winch(_signum, _frame) -> None:
         raw = winsize(stdin_fd)
         try:
@@ -387,6 +401,7 @@ def wrap_shell() -> int:
     old = termios.tcgetattr(stdin_fd)
     tty.setraw(stdin_fd)
     rest = b""
+
     def flush_leader() -> None:
         nonlocal leader_armed
         if leader_armed:
@@ -395,6 +410,7 @@ def wrap_shell() -> int:
             except OSError:
                 pass
             leader_armed = False
+
     def handle_leader(data: bytes) -> bytes:
         """Consume mux-mode leader sequences. Return leftover bytes."""
         nonlocal leader_armed
@@ -522,7 +538,9 @@ def wrap_shell() -> int:
             pass
         paint_goodbye(stdout_fd)
     return 0
+
 def main() -> int:
     return wrap_shell()
+
 if __name__ == "__main__":
     raise SystemExit(main())
