@@ -11,6 +11,10 @@ is a python pseudo-terminal multiplexer (pty mux) and terminal UI for hai (hcli_
 The pty mux can be invoked via python package name (simply typing haillo in the terminal after installing haillo via pip). The script is tied into python package version dependencies to help maintain semantic expectations, notably against huckle and hcli_hai.
 .sp
 Note that huckle must be setup to interact with the hcli_hai backend for haillo to be able to make use of hai (e.g. huckle cli install localhost:10000 (e.g. where hcli_hai could be running on hcli_core)).
+.sp
+Also note that in addition to its python huckle and hcli_hai dependencies, haillo is dependent on a small amount of bash scripting, fzf (fuzzy finder) and gum (pretty output).
+.sp
+Haillo's agent automation attempt to execute local bash commands as proposed by the hai agent orchestrator. A whitelist helps provide some measure of protection on destructive activities.
 .SH COMMANDS
 .IP help
 This help file.
