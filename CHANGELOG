@@ -4,6 +4,19 @@ All notable changes to this project will be documented in this file.
 The format is loosely based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/)
 and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 
+## [1.0.0]
+- Refactored from a webapp to a pty mux with leader key activation to interact with hai
+- Add seamless turning on and off of pty mux with global leader (ctrl+space)
+- Add secondary leader support to enable rapid shortcuts
+- Add voice assistant activation and deactivation leader
+- Add incremental plan step leader
+- Add auto title creation leader
+- Add provider selection with fzf
+- Add model selection with fzf
+- Add conversation selection with fzf
+- Add context rest with gum confirmation gate
+- Add automatic plan following with simple custom bash spinner and gum status output
+
 ## [0.4.0]
 - Fix to use the latest version of hcli_hai 3.4.2.
 - Add alerts for relayed problem detail information returned by the backend to enhance user experience
