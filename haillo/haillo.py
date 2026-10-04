@@ -253,6 +253,7 @@ def __run_task_to_completion(shell_master: int) -> None:
                 break
     finally:
         restore_echo()
+
 LEADER_PY: dict[bytes, Callable[[int], None]] = {
     b"i": __proposed_commands,
     b"g": __run_task_to_completion,
@@ -325,10 +326,12 @@ def at_shell_prompt(master: int, shell_pgrp: int) -> bool:
     return pgrp is not None and pgrp == shell_pgrp
 
 class MuxApp:
+
     def __init__(self) -> None:
         self.pid: Optional[int] = None
         self.master: Optional[int] = None
         self.active = False
+
     def _announce(self, line: bytes, shell_master: int) -> None:
         try:
             os.write(sys.stdout.fileno(), line)
@@ -338,9 +341,11 @@ class MuxApp:
             os.write(shell_master, b"\n")
         except OSError:
             pass
+
     def spawn(self, tty_fd: int, shell_master: int) -> None:
         self.active = True
         self._announce(b"haillo pty mux on", shell_master)
+
     def close(self, shell_master: Optional[int] = None) -> None:
         if self.master is not None:
             try:
