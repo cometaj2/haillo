@@ -170,13 +170,12 @@ def __proposed_commands(shell_master: int) -> bool:
     )
     # Combine into a single command so no prompt appears between them
     combined_cmd = (
-        b""
+        b"stty -echo\n"
         + gum_lines.encode("utf-8")
         + gum_authz_lines.encode("utf-8")
         + b"stty echo\n"
     )
     try:
-        os.write(shell_master, b"stty -echo\n")
         os.write(shell_master, combined_cmd)
         if allowed:
             os.write(shell_master, (bash_cmd + " | hai agent next\n").encode("utf-8"))
@@ -247,7 +246,19 @@ def __run_task_to_completion(shell_master: int) -> None:
                 spin.clear()
                 if not __proposed_commands(shell_master):
                     break
-            elif status in ("done", "blocked"):
+            elif status in ("inactive", "done", "blocked"):
+                gum_lines = (
+                    f'gum style --border rounded --width $(tput cols) '
+                    f'--padding "0 1" "# {status}";'
+                )
+
+                combined_cmd = (
+                    b"stty -echo\n"
+                    + gum_lines.encode("utf-8")
+                    + b"stty echo\n"
+                )
+
+                os.write(shell_master, combined_cmd)
                 break
             if __forward(shell_master, POLL, spin):
                 break
