@@ -3,13 +3,13 @@
 Haillo
 ======
 
-Haillo is a web frontend for hai (hcli_hai), the HCLI command line AI chat application.
+Haillo is a pseudo-terminal multiplexer for hai (hcli_hai), the HCLI command line AI chat and agent application.
 
 ----
 
-Haillo is able to work with the hai HCLI application (hcli_hai) to interact with locally stored ai conversation contexts.
+Haillo expects to work with the hai HCLI application (hcli_hai + hcli_core + huckle) to interact with locally (or remotely) stored ai conversation contexts.
 
-Note that a valid Anthropic API key has to be setup for hcli_hai to be usable. see hai help after hooking to it with huckle (see installation instructions below).
+Note that a valid Ollama or xAI API key has to be setup for hcli_hai to be usable. See hai help after hooking to it with huckle (see installation instructions below).
 
 Help shape HCLI and it's ecosystem by raising issues on github!
 
@@ -22,7 +22,7 @@ Related HCLI Projects
 
 - huckle is a CLI, and python library, that can act as an impostor for any CLI expressed via hypertext command line interface (HCLI) semantics [3]
 
-- hcli_hai, a python package wrapper that contains an HCLI sample application (hai); hai is an HCLI for interacting with Anthropic's Claude models via terminal input and output streams. [4]
+- hcli_hai is a python package wrapper that contains an HCLI sample application (hai); hai is an HCLI for interacting with Ollama (GGUF) or xAI (Grok) service provider models via terminal input and output streams."
 
 [2] https://github.com/cometaj2/hcli_core
 
@@ -45,9 +45,10 @@ You'll need an WSGI compliant application server to run haillo. For example, you
     pip install hcli_hai
     pip install hcli_core
     pip install gunicorn
-    gunicorn --workers=1 --threads=100 -b 0.0.0.0:10000 "hcli_core:connector(\"`hcli_hai path`\")"
-    huckle cli install localhost:10000
-    gunicorn --preload --workers=4 --threads=100 -b 127.0.0.1:8000 --chdir `haillo path` "haillo:webapp()"
+    hcli_core cli install `hcli_hai path`
+    huckle cli install localhost:8000
+    hcli_core cli run hai | bash
+    haillo
 
 Usage
 -----
@@ -56,8 +57,8 @@ Usage
 
     haillo help
     hcli_hai help
-    huckle help
     hcli_core help
+    huckle help
     hai help
 
 Versioning
