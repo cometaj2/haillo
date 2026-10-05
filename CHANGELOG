@@ -17,6 +17,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 - Add context rest with gum confirmation gate
 - Add automatic plan following with simple custom bash spinner and gum status output
 - Add inceptive whitelist to offer some protection for client-side bash execution
+- Add inceptive auto wrap and send of comment line to hai async
 - Add proposed bash command line execution per hai plan
 
 ## [0.4.0]

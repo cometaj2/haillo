@@ -65,6 +65,9 @@ LEADER_CMDS = {
     b"t": (
         b"hai title auto\n"
     ),
+    b"w": (
+        b"\necho \"$(fc -ln -2 | head -n1 | sed 's/^[ \\t]*#*[ \\t]*//')\" | hai --async\n"
+    ),
 }
 
 
