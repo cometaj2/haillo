@@ -41,7 +41,7 @@ LEADER_CMDS = {
         b"hai ls | tail -n +2 | tac | fzf --prompt='context> ' | awk '{print $1}' | xargs -r hai set\n"
     ),
     b"r": (
-        b"gum confirm 'Reset this context?' --default=no && hai reset || echo 'Cancelled'\n"
+        b"gum confirm 'Reset this context?' --default=no && hai reset || echo '\nCancelled\n'\n"
     ),
     b"v": (
         b"st=$(hai voice enabled | tr -d '[:space:]'); "
