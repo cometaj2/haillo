@@ -24,12 +24,12 @@ import json
 import time
 from huckle import cli, stdin
 from typing import Callable, Optional
+
 # Ctrl-Space is NUL (0x00) in most terminals. Override with hex, e.g. "00".
 INVOKE = bytes.fromhex(os.environ.get("PTY_MUX_INVOKE", "00"))
 LEADER = b","
 LEADER_TIMEOUT = 0.45
 POLL = 1.0
-SPIN = "|/-\\"
 LEADER_CMDS = {
     b"m": (
         b"hai model ls | fzf --prompt='model> ' | xargs -r hai model set\n"
@@ -74,13 +74,15 @@ LEADER_CMDS = {
 class Spinner:
     """One character at the cursor. Cleared before real output."""
 
+    SPIN = "|/-\\"
+
     def __init__(self, fd: int) -> None:
         self.fd = fd
         self.frame = 0
         self.on = False
 
     def tick(self) -> None:
-        ch = SPIN[self.frame % len(SPIN)].encode()
+        ch = Spinner.SPIN[self.frame % len(Spinner.SPIN)].encode()
         self.frame += 1
         try:
             if self.on:
@@ -101,11 +103,7 @@ class Spinner:
         self.on = False
 
 def __validate_bash_command(command_string, whitelist):
-    try:
-        # Parse the string into a Bash AST
-        trees = bashlex.parse(command_string)
-    except bashlex.errors.ParsingError:
-        return False  # Invalid Bash syntax
+
     def check_node(node):
         # If the node represents an executed command
         if node.kind == 'command':
@@ -120,6 +118,13 @@ def __validate_bash_command(command_string, whitelist):
         if hasattr(node, 'parts'):
             for part in node.parts:
                 check_node(part)
+
+    try:
+        # Parse the string into a Bash AST
+        trees = bashlex.parse(command_string)
+    except bashlex.errors.ParsingError:
+        return False  # Invalid Bash syntax
+
     try:
         for tree in trees:
             check_node(tree)
@@ -127,8 +132,9 @@ def __validate_bash_command(command_string, whitelist):
     except ValueError:
         return False
 
-"""Fetch task from hai, show it to the user, and inject the command if allowed."""
 def __proposed_commands(shell_master: int) -> bool:
+    """Fetch task from hai, show it to the user, and inject the command if allowed."""
+
     try:
         chunks = cli("hai agent task")
         task_str = b"".join(c for d, c in chunks if d == "stdout")
@@ -137,6 +143,7 @@ def __proposed_commands(shell_master: int) -> bool:
         return False
     if not isinstance(task, dict):
         return False
+
     bash_cmd = (task.get("bash") or "").strip()
     goal = task.get("goal", "")
     why = task.get("why", "")
@@ -146,12 +153,15 @@ def __proposed_commands(shell_master: int) -> bool:
     })
     authz_lines = []
     lines = ["# --- hai agent task ---"]
+
     if goal:
         lines.append(f"# goal: {goal}")
     if why:
         lines.append(f"# why:  {why}")
+
     lines.append(f"# command: {bash_cmd or '(none)'}")
     allowed = False
+
     if bash_cmd:
         if __validate_bash_command(bash_cmd, WHITELIST):
             authz_lines.append("# status: authorized (whitelisted)")
@@ -160,6 +170,7 @@ def __proposed_commands(shell_master: int) -> bool:
             authz_lines.append("# status: BLOCKED (not in whitelist)")
     else:
         lines.append("# status: no command proposed")
+
     # Build a single-line printf command (no newlines in the shell command itself)
     printf_authz_args = " ".join(f'"{line}"' for line in authz_lines)
     printf_args = " ".join(f'"{line}"' for line in lines)
@@ -171,6 +182,7 @@ def __proposed_commands(shell_master: int) -> bool:
         f'gum style --border rounded --width $(tput cols) '
         f'--padding "0 1" "$(printf \'%s\\n\' {printf_authz_args})";'
     )
+
     # Combine into a single command so no prompt appears between them
     combined_cmd = (
         b"stty -echo\n"
@@ -234,6 +246,7 @@ def __run_task_to_completion(shell_master: int) -> None:
     does not freeze the tty. Ctrl-C leaves the loop.
     """
     spin = Spinner(sys.stdout.fileno())
+
     def restore_echo():
         spin.clear()
         try:
@@ -382,23 +395,6 @@ class MuxApp:
             self._announce(b"haillo pty mux off", shell_master)
 
 def wrap_shell() -> int:
-    stdin_fd = sys.stdin.fileno()
-    stdout_fd = sys.stdout.fileno()
-    if not os.isatty(stdin_fd):
-        sys.stderr.write("pty_mux: stdin is not a tty\n")
-        return 1
-    shell = os.environ.get("SHELL", "/bin/bash")
-    shell_pid, shell_master = pty.fork()
-    if shell_pid == 0:
-        os.execvp(shell, [shell, "-l"])
-    try:
-        set_winsize(shell_master, winsize(stdin_fd))
-    except OSError:
-        pass
-    paint_logo(stdout_fd)
-    shell_pgrp = shell_pid
-    mux = MuxApp()
-    leader_armed = False
 
     def on_winch(_signum, _frame) -> None:
         raw = winsize(stdin_fd)
@@ -416,10 +412,6 @@ def wrap_shell() -> int:
                     os.kill(mux.pid, signal.SIGWINCH)
                 except OSError:
                     pass
-    signal.signal(signal.SIGWINCH, on_winch)
-    old = termios.tcgetattr(stdin_fd)
-    tty.setraw(stdin_fd)
-    rest = b""
 
     def flush_leader() -> None:
         nonlocal leader_armed
@@ -464,6 +456,32 @@ def wrap_shell() -> int:
             out += ch
             i += 1
         return bytes(out)
+
+    stdin_fd = sys.stdin.fileno()
+    stdout_fd = sys.stdout.fileno()
+    if not os.isatty(stdin_fd):
+        sys.stderr.write("pty_mux: stdin is not a tty\n")
+        return 1
+    shell = os.environ.get("SHELL", "/bin/bash")
+    shell_pid, shell_master = pty.fork()
+    if shell_pid == 0:
+        os.execvp(shell, [shell, "-l"])
+
+    try:
+        set_winsize(shell_master, winsize(stdin_fd))
+    except OSError:
+        pass
+
+    paint_logo(stdout_fd)
+    shell_pgrp = shell_pid
+    mux = MuxApp()
+    leader_armed = False
+
+    signal.signal(signal.SIGWINCH, on_winch)
+    old = termios.tcgetattr(stdin_fd)
+    tty.setraw(stdin_fd)
+    rest = b""
+
     try:
         while True:
             fds = [stdin_fd, shell_master]
