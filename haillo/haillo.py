@@ -285,7 +285,7 @@ class ShellWrapper:
         try:
             os.write(self.shell_master, b"stty -echo\n" + gum_cmd + b"stty echo\n")
             if allowed:
-                os.write(self.shell_master, (bash_cmd + " | hai agent next\n").encode("utf-8"))
+                os.write(self.shell_master, (bash_cmd + " | perl -pe 's/\\x1b\\[[0-9;]*[a-zA-Z]//g' | hai agent next\n").encode("utf-8"))
         except OSError:
             return False
         return allowed
