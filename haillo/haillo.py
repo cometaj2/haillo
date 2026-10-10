@@ -447,12 +447,11 @@ class ShellWrapper:
 
     def __terminate_spawn_voice(self):
         try:
-            if self.voice_spawn_window:
-                subprocess.run(
-                    ["hyprctl", "dispatch",
-                     f'hl.dsp.window.close({{ window = "tag:hai-voice-assistant" }})'],
-                    env=os.environ, capture_output=True, text=True, check=False
-                )
+            subprocess.run(
+                ["hyprctl", "dispatch",
+                 f'hl.dsp.window.close({{ window = "tag:hai-voice-assistant" }})'],
+                env=os.environ, capture_output=True, text=True, check=False
+            )
             self.voice_spawn_window = None
         except OSError:
             pass
