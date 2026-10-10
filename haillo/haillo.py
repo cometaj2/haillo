@@ -259,6 +259,7 @@ class ShellWrapper:
         try:
             os.write(self.shell_master, voice_cmd)
             if enabled == "False":
+                self.__terminate_spawn_voice()
                 self.__spawn_voice()
             else:
                 self.__terminate_spawn_voice()
@@ -424,6 +425,15 @@ class ShellWrapper:
             )
             self.voice_spawn_window = result.stdout.strip()
 
+            # Tag the voice spawn
+            subprocess.run(
+                ["hyprctl", "dispatch",
+                 f'hl.dsp.window.tag({{ tag = "+hai-voice-assistant", window = "{self.voice_spawn_window}" }})'],
+                env=os.environ,
+                capture_output=True,
+                text=True
+            )
+
             # Refocus using the selector
             subprocess.run(
                 ["hyprctl", "dispatch",
@@ -440,7 +450,7 @@ class ShellWrapper:
             if self.voice_spawn_window:
                 subprocess.run(
                     ["hyprctl", "dispatch",
-                     f'hl.dsp.window.close({{ window = "{self.voice_spawn_window}" }})'],
+                     f'hl.dsp.window.close({{ window = "tag:hai-voice-assistant" }})'],
                     env=os.environ, capture_output=True, text=True, check=False
                 )
             self.voice_spawn_window = None
