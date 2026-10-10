@@ -44,10 +44,18 @@ RADIUS = 6.0
 BAR_SCALE = 7.0
 F_HI = 8000.0
 
-MINI_WIDTH = 14
-MINI_HEIGHT = 9
-MINI_RADIUS = 2.6
+MINI_WIDTH = 5 # 14
+MINI_HEIGHT = 3 # 9
 
+
+
+# | Value | Effect | Recommendation |
+# |-------|--------|----------------|
+# | `2.6` | Current | Quite big for a mini overlay |
+# | `2.0` | Moderately smaller | Good balance |
+# | `1.7` | Quite small | Cleaner, less text interference |
+# | `1.5` | Very small | Minimal footprint |
+MINI_RADIUS = 0.1
 
 def _winsize(fd: int) -> tuple[int, int]:
     try:
