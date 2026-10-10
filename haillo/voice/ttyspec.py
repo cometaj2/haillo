@@ -63,7 +63,7 @@ def _winsize(fd: int) -> tuple[int, int]:
         import fcntl, termios
         packed = fcntl.ioctl(fd, termios.TIOCGWINSZ, b"\x00" * 8)
         rows, cols, _, _ = struct.unpack("HHHH", packed)
-        return max(rows, 8), max(cols, 16)
+        return max(rows, 3), max(cols, 3)
     except (OSError, ImportError):
         size = shutil.get_terminal_size(fallback=(80, 24))
         return size.lines, size.columns
