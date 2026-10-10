@@ -36,12 +36,12 @@ THEMES: dict[str, tuple[tuple[str, str], ...]] = {
 }
 
 RATE = 44100
-CHUNK = 512
-LATENCY_MS = 20
+CHUNK = 512     # 512
+LATENCY_MS = 20 # 20
 BARS = 48
 DECAY = 0.72
-RADIUS = 6.0
-BAR_SCALE = 7.0 # 7.0
+RADIUS = 0.1    # 6.0
+BAR_SCALE = 4.0 # 7.0
 F_LO = 1.0
 F_HI = 8000.0 # 8000
 
@@ -307,40 +307,48 @@ class RadialSpectrum:
             out.append(math.sqrt(acc / max(1, i1 - i0)) * scale)
         return out
 
+
     def _stamp(self, amps: list[float]) -> None:
         rows = self._rows
         cols = self._cols
         buf = self._buf
+
         cx = cols / 2.0
         cy = rows / 2.0
-        radius = self.radius
+
+        # Use the smaller dimension so the ring stays circular
+        r = min(rows, cols) * self.radius * 0.5
         n = len(amps)
+
         if n != len(self._smooth):
             self._smooth = [0.0] * n
 
         for i, amp in enumerate(amps):
             prev = self._smooth[i]
             self._smooth[i] = amp if amp > prev else prev * 0.82 + amp * 0.18
+
         blurred = [0.0] * n
         for i in range(n):
             blurred[i] = (
-                self._smooth[(i - 1) % n] * 0.22
-                + self._smooth[i] * 0.56
-                + self._smooth[(i + 1) % n] * 0.22
+                self._smooth[(i - 1) % n] * 0.22 +
+                self._smooth[i] * 0.56 +
+                self._smooth[(i + 1) % n] * 0.22
             )
 
         peak = max(blurred) if blurred else 0.0
         self._peak = max(peak, self._peak * 0.99, 1e-4)
         reach = BAR_SCALE * self.sensitivity
 
+        # Center ring
         if not self.ghost:
             for i in range(360):
                 ang = i / 360.0 * 2.0 * math.pi
-                x = int(cx + radius * math.cos(ang) * 2.0)
-                y = int(cy + radius * math.sin(ang))
+                x = int(cx + r * math.cos(ang) * 2.0)
+                y = int(cy + r * math.sin(ang))
                 if 0 <= y < rows and 0 <= x < cols:
                     buf[y][x] = max(buf[y][x], 1.0)
 
+        # Pulsing bars (now using the same center and scaling)
         for i, amp in enumerate(blurred):
             shaped = math.sqrt(max(amp, 0.0) / self._peak)
             length = max(1, int(shaped * reach)) if shaped > 0.08 else 0
@@ -353,15 +361,72 @@ class RadialSpectrum:
                 for step in range(length):
                     t = step / length
                     level = 1.0 - 0.55 * t
-                    r = radius + 0.85 * step
-                    x = int(cx + r * c * 2.0)
-                    y = int(cy + r * s)
+                    rr = r + 0.85 * step
+                    x = int(cx + rr * c * 2.0)
+                    y = int(cy + rr * s)
                     if 0 <= y < rows and 0 <= x < cols:
                         buf[y][x] = max(buf[y][x], level)
-                    x2 = int(cx + r * c * 2.0 + (-s if i % 2 else s))
-                    y2 = int(cy + r * s + (c if i % 2 else -c) * 0.4)
+                    x2 = int(cx + rr * c * 2.0 + (-s if i % 2 else s))
+                    y2 = int(cy + rr * s + (c if i % 2 else -c) * 0.4)
                     if 0 <= y2 < rows and 0 <= x2 < cols:
                         buf[y2][x2] = max(buf[y2][x2], level * 0.65)
+
+
+#     def _stamp(self, amps: list[float]) -> None:
+#         rows = self._rows
+#         cols = self._cols
+#         buf = self._buf
+#         cx = cols / 2.0
+#         cy = rows / 2.0
+#         radius = self.radius
+#         n = len(amps)
+#         if n != len(self._smooth):
+#             self._smooth = [0.0] * n
+# 
+#         for i, amp in enumerate(amps):
+#             prev = self._smooth[i]
+#             self._smooth[i] = amp if amp > prev else prev * 0.82 + amp * 0.18
+#         blurred = [0.0] * n
+#         for i in range(n):
+#             blurred[i] = (
+#                 self._smooth[(i - 1) % n] * 0.22
+#                 + self._smooth[i] * 0.56
+#                 + self._smooth[(i + 1) % n] * 0.22
+#             )
+# 
+#         peak = max(blurred) if blurred else 0.0
+#         self._peak = max(peak, self._peak * 0.99, 1e-4)
+#         reach = BAR_SCALE * self.sensitivity
+# 
+#         if not self.ghost:
+#             for i in range(360):
+#                 ang = i / 360.0 * 2.0 * math.pi
+#                 x = int(cx + radius * math.cos(ang) * 2.0)
+#                 y = int(cy + radius * math.sin(ang))
+#                 if 0 <= y < rows and 0 <= x < cols:
+#                     buf[y][x] = max(buf[y][x], 1.0)
+# 
+#         for i, amp in enumerate(blurred):
+#             shaped = math.sqrt(max(amp, 0.0) / self._peak)
+#             length = max(1, int(shaped * reach)) if shaped > 0.08 else 0
+#             if length == 0:
+#                 continue
+#             for mirror in (0.0, math.pi):
+#                 ang = mirror + (i + 0.5) / n * math.pi
+#                 c = math.cos(ang)
+#                 s = math.sin(ang)
+#                 for step in range(length):
+#                     t = step / length
+#                     level = 1.0 - 0.55 * t
+#                     r = radius + 0.85 * step
+#                     x = int(cx + r * c * 2.0)
+#                     y = int(cy + r * s)
+#                     if 0 <= y < rows and 0 <= x < cols:
+#                         buf[y][x] = max(buf[y][x], level)
+#                     x2 = int(cx + r * c * 2.0 + (-s if i % 2 else s))
+#                     y2 = int(cy + r * s + (c if i % 2 else -c) * 0.4)
+#                     if 0 <= y2 < rows and 0 <= x2 < cols:
+#                         buf[y2][x2] = max(buf[y2][x2], level * 0.65)
 
     def _paint(self) -> None:
         high, mid_high, mid, low = self._palette

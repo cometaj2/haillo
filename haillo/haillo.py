@@ -22,6 +22,8 @@ import tty
 import bashlex
 import json
 import time
+import subprocess
+import config
 from huckle import cli
 from typing import Callable, Optional
 
@@ -117,14 +119,6 @@ class ShellWrapper:
         b"p": b"hai provider ls | fzf --prompt='provider> ' | xargs -r hai provider set\n",
         b"c": b"hai ls | tail -n +2 | tac | fzf --prompt='context> ' | awk '{print $1}' | xargs -r hai set\n",
         b"r": b"gum confirm 'Reset this context?' --default=no && hai reset || echo '\nCancelled\n'\n",
-        b"v": (
-            b"st=$(hai voice enabled | tr -d '[:space:]'); "
-            b"if [ \"$st\" = True ] || [ \"$st\" = true ]; then "
-            b"hai voice stop; echo '\nvoice assist off\n'; "
-            b"else "
-            b"hai voice start; echo '\nvoice assist on\n'; "
-            b"fi\n"
-        ),
         b"a": (
             b"st=$(hai agent enabled | tr -d '[:space:]'); "
             b"if [ \"$st\" = True ] || [ \"$st\" = true ]; then "
@@ -171,10 +165,13 @@ class ShellWrapper:
         self.shell_master: Optional[int] = None
         self.mux: Optional[MuxApp] = None
         self.stdin_fd: Optional[int] = None
+        self.current_window = None
+        self.voice_spawn_window = None
 
         self.LEADER_PY: dict[bytes, Callable[[], None]] = {
             b"i": self.__proposed_commands,
             b"g": self.__run_task_to_completion,
+            b"v": self.__toggle_voice,
         }
 
     def drop_shell_farewell(self, data: bytes) -> bytes:
@@ -240,6 +237,37 @@ class ShellWrapper:
             return True
         except ValueError:
             return False
+
+
+    def __toggle_voice(self) -> bool:
+
+        voice_cmd = (
+            b"st=$(hai voice enabled | tr -d '[:space:]'); "
+            b"if [ \"$st\" = True ] || [ \"$st\" = true ]; then "
+            b"hai voice stop; echo '\nvoice assist off\n'; "
+            b"else "
+            b"hai voice start; echo '\nvoice assist on\n'; "
+            b"fi\n"
+        )
+
+        try:
+            chunks = cli("hai voice enabled")
+            enabled = b"".join(c for d, c in chunks if d == "stdout").decode('utf-8')
+        except Exception:
+            return False
+
+        try:
+            os.write(self.shell_master, voice_cmd)
+            if enabled == "False":
+                self.__spawn_voice()
+            else:
+                self.__terminate_spawn_voice()
+        except OSError:
+            return False
+        except Exception:
+            pass
+
+        return True
 
     def __proposed_commands(self) -> bool:
         try:
@@ -365,6 +393,59 @@ class ShellWrapper:
                     break
         finally:
             restore_echo()
+
+    def __spawn_voice(self):
+        try:
+            # Get a usable window selector (address in 0x form)
+            result = subprocess.run(
+                ["hyprctl", "repl",
+                 "string.format('address:0x%x', hl.get_active_window().address)"],
+                env=os.environ,
+                capture_output=True,
+                text=True
+            )
+            self.current_window = result.stdout.strip()
+
+            # Run your script
+            subprocess.run(
+                ["/bin/bash", config.voice],
+                env=os.environ,
+                capture_output=True,
+                text=True
+            )
+
+            # Get a usable window selector (address in 0x form)
+            result = subprocess.run(
+                ["hyprctl", "repl",
+                 "string.format('address:0x%x', hl.get_active_window().address)"],
+                env=os.environ,
+                capture_output=True,
+                text=True
+            )
+            self.voice_spawn_window = result.stdout.strip()
+
+            # Refocus using the selector
+            subprocess.run(
+                ["hyprctl", "dispatch",
+                 f'hl.dsp.focus({{ window = "{self.current_window}" }})'],
+                env=os.environ,
+                capture_output=True,
+                text=True
+            )
+        except Exception as e:
+            pass
+
+    def __terminate_spawn_voice(self):
+        try:
+            if self.voice_spawn_window:
+                subprocess.run(
+                    ["hyprctl", "dispatch",
+                     f'hl.dsp.window.close({{ window = "{self.voice_spawn_window}" }})'],
+                    env=os.environ, capture_output=True, text=True, check=False
+                )
+            self.voice_spawn_window = None
+        except OSError:
+            pass
 
     def on_winch(self, signum, frame) -> None:
         if self.stdin_fd is None or self.shell_master is None:
