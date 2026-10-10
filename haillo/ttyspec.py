@@ -41,8 +41,9 @@ LATENCY_MS = 20
 BARS = 48
 DECAY = 0.72
 RADIUS = 6.0
-BAR_SCALE = 7.0
-F_HI = 8000.0
+BAR_SCALE = 7.0 # 7.0
+F_LO = 1.0
+F_HI = 8000.0 # 8000
 
 MINI_WIDTH = 5 # 14
 MINI_HEIGHT = 3 # 9
@@ -162,7 +163,6 @@ class RadialSpectrum:
     def _log_edges(n: int, rate: int) -> list[tuple[int, int]]:
         hi = min(F_HI, rate / 2 - 1)
         edges = []
-        F_LO = 2.5
         for i in range(n):
             a = F_LO * (hi / F_LO) ** (i / n)
             b = F_LO * (hi / F_LO) ** ((i + 1) / n)
