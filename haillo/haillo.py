@@ -130,6 +130,7 @@ class ShellWrapper:
         b"s": b"hai context\n",
         b"t": b"hai title auto\n",
         b"w": b"\necho \"$(fc -ln -2 | head -n1 | sed 's/^[ \\t]*#*[ \\t]*//')\" | hai --async\n",
+        b",": b"haillo help\n",
     }
 
     LOGO = r"""
