@@ -558,18 +558,26 @@ def run(spec: RadialSpectrum, source: str, latency_ms: int = LATENCY_MS) -> int:
             assert proc.stdout is not None
             fd = proc.stdout.fileno()
             os.set_blocking(fd, False)
+
             while not stop:
                 try:
                     raw = os.read(fd, 65536)
                 except BlockingIOError:
                     raw = b""
+
                 if raw:
                     spec.push_bytes(raw)
-                    spec.tick()
+
+                    # Process every complete audio chunk currently available.
+                    while len(spec._pending) >= CHUNK * 4:
+                        spec.tick()
+
                     continue
-                if proc.poll() is not None and not spec._pending:
+
+                if proc.poll() is not None:
                     break
-                spec.tick()
+
+                # Do not redraw when no new audio is available.
                 time.sleep(0.004)
     finally:
         spec.clear()
