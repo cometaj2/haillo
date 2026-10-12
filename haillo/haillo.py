@@ -24,6 +24,7 @@ import json
 import time
 import subprocess
 import config
+import threading
 from huckle import cli
 from typing import Callable, Optional
 
@@ -168,6 +169,8 @@ class ShellWrapper:
         self.stdin_fd: Optional[int] = None
         self.current_window = None
         self.voice_spawn_window = None
+        self.voice_active: Optional[bool] = None
+        self.voice_timer = None
 
         self.LEADER_PY: dict[bytes, Callable[[], None]] = {
             b"i": self.__proposed_commands,
@@ -396,66 +399,122 @@ class ShellWrapper:
         finally:
             restore_echo()
 
-    def __spawn_voice(self):
+    def __voice_tag_active(self) -> Optional[bool]:
+        """
+        Return whether a client with the voice tag exists.
+
+        True  = voice window exists
+        False = voice window does not exist
+        None  = unable to determine state
+        """
         try:
-            # Get a usable window selector (address in 0x form)
+            result = subprocess.run(
+                ["hyprctl", "clients", "-j"],
+                env=os.environ,
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+
+            if result.returncode != 0:
+                return None
+
+            clients = json.loads(result.stdout)
+
+            for client in clients:
+                tags = client.get("tags", [])
+                if "hai-voice-assistant" in tags:
+                    return True
+
+            return False
+
+        except (OSError, ValueError, TypeError):
+            return None
+
+
+    def __init_voice_state(self) -> None:
+
+        """One-time tag observation when haillo starts."""
+
+        observed = self.__voice_tag_active()
+
+        print(observed)
+
+        # Treat unknown as "not running" so we do not spawn a duplicate
+        # if hyprctl is briefly unavailable at launch.
+        self.voice_active = observed is True
+
+    def __spawn_voice(self) -> None:
+        if self.voice_active is True:
+            return
+        try:
+            # capture current window, launch, tag, restore focus
+            # (identical body to the original, minus the tag check)
             result = subprocess.run(
                 ["hyprctl", "repl",
                  "string.format('address:0x%x', hl.get_active_window().address)"],
-                env=os.environ,
-                capture_output=True,
-                text=True
+                env=os.environ, capture_output=True, text=True, check=False,
             )
             self.current_window = result.stdout.strip()
-
-            # Run your script
             subprocess.run(
                 ["/bin/bash", config.voice],
-                env=os.environ,
-                capture_output=True,
-                text=True
+                env=os.environ, capture_output=True, text=True, check=False,
             )
-
-            # Get a usable window selector (address in 0x form)
             result = subprocess.run(
                 ["hyprctl", "repl",
                  "string.format('address:0x%x', hl.get_active_window().address)"],
-                env=os.environ,
-                capture_output=True,
-                text=True
+                env=os.environ, capture_output=True, text=True, check=False,
             )
             self.voice_spawn_window = result.stdout.strip()
-
-            # Tag the voice spawn
             subprocess.run(
                 ["hyprctl", "dispatch",
                  f'hl.dsp.window.tag({{ tag = "+hai-voice-assistant", window = "{self.voice_spawn_window}" }})'],
-                env=os.environ,
-                capture_output=True,
-                text=True
+                env=os.environ, capture_output=True, text=True, check=False,
             )
-
-            # Refocus using the selector
             subprocess.run(
                 ["hyprctl", "dispatch",
                  f'hl.dsp.focus({{ window = "{self.current_window}" }})'],
-                env=os.environ,
-                capture_output=True,
-                text=True
+                env=os.environ, capture_output=True, text=True, check=False,
             )
-        except Exception as e:
+            self.voice_active = True
+        except Exception:
             pass
 
-    def __terminate_spawn_voice(self):
+    def __terminate_spawn_voice(self) -> None:
+        if self.voice_active is False:
+            return
         try:
             subprocess.run(
                 ["hyprctl", "dispatch",
-                 f'hl.dsp.window.close({{ window = "tag:hai-voice-assistant" }})'],
-                env=os.environ, capture_output=True, text=True, check=False
+                 'hl.dsp.window.close({ window = "tag:hai-voice-assistant" })'],
+                env=os.environ, capture_output=True, text=True, check=False,
             )
+            self.voice_active = False
             self.voice_spawn_window = None
         except OSError:
             pass
+
+    def voice_check(self, seconds: float) -> None:
+        def check_service_availability() -> None:
+
+            enabled = None
+            try:
+                chunks = cli("hai voice enabled")
+                enabled = b"".join(c for d, c in chunks if d == "stdout").decode().strip()
+
+                if enabled == "True" and self.voice_active is False:
+                    self.__spawn_voice()
+                elif enabled == "False" and self.voice_active is True:
+                    self.__terminate_spawn_voice()
+            except Exception:
+                self.__terminate_spawn_voice()
+            finally:
+                self.voice_timer = None
+
+        if self.voice_timer is None:
+            self.voice_timer = threading.Timer(seconds, check_service_availability)
+            self.voice_timer.daemon = True
+            self.voice_timer.start()
 
     def on_winch(self, signum, frame) -> None:
         if self.stdin_fd is None or self.shell_master is None:
@@ -515,6 +574,8 @@ class ShellWrapper:
         return bytes(out)
 
     def wrap(self) -> int:
+        self.__init_voice_state()
+
         self.stdin_fd = sys.stdin.fileno()
         stdout_fd = sys.stdout.fileno()
         if not os.isatty(self.stdin_fd):
@@ -545,6 +606,9 @@ class ShellWrapper:
 
         try:
             while True:
+                # voice check to periodically check on voice being enabled
+                self.voice_check(5)
+
                 fds = [self.stdin_fd, self.shell_master]
                 if self.mux.master is not None:
                     fds.append(self.mux.master)
