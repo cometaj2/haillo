@@ -5,7 +5,6 @@ The format is loosely based on [Keep a Changelog](http://keepachangelog.com/en/1
 and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 
 ## [1.0.0]
-- Refactored from a webapp to a pty mux with leader key activation to interact with hai
 - Add seamless turning on and off of pty mux with global leader (ctrl+space)
 - Add secondary leader support to enable rapid shortcuts
 - Add voice assistant activation and deactivation leader
@@ -14,11 +13,13 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 - Add provider selection with fzf
 - Add model selection with fzf
 - Add conversation selection with fzf
-- Add context rest with gum confirmation gate
+- Add context reset with gum confirmation gate
+- Add help leader to trigger haillo help (,,)
 - Add automatic plan following with simple custom bash spinner and gum status output
 - Add inceptive whitelist to offer some protection for client-side bash execution
-- Add inceptive auto wrap and send of comment line to hai async
+- Add inceptive auto wrap and send of comment line to hai --async
 - Add proposed bash command line execution per hai plan
+- Refactored from a webapp to a pty mux with leader key activation to interact with hai
 
 ## [0.4.0]
 - Fix to use the latest version of hcli_hai 3.4.2.
