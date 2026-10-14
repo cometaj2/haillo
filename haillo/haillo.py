@@ -129,6 +129,11 @@ class ShellWrapper:
             b"hai agent start; echo '\nagent on\n'; "
             b"fi\n"
         ),
+        b"as": (
+            b"hai agent skills ls | tail -n +2 | tac | "
+            b"fzf --prompt='skill> ' | awk '{print $1}' | "
+            b"xargs -r hai agent skills set\n"
+        ),
         b"s": b"hai context\n",
         b"t": b"hai title auto\n",
         b"w": b"\necho \"$(fc -ln -2 | head -n1 | sed 's/^[ \\t]*#*[ \\t]*//')\" | hai --async\n",
@@ -164,7 +169,7 @@ class ShellWrapper:
     )
 
     def __init__(self):
-        self.leader_armed = False
+        self.leader_buffer: Optional[bytes] = None
         self.shell_master: Optional[int] = None
         self.mux: Optional[MuxApp] = None
         self.stdin_fd: Optional[int] = None
@@ -242,7 +247,6 @@ class ShellWrapper:
             return True
         except ValueError:
             return False
-
 
     def __toggle_voice(self) -> bool:
 
@@ -432,7 +436,6 @@ class ShellWrapper:
         except (OSError, ValueError, TypeError):
             return None
 
-
     def __init_voice_state(self) -> None:
 
         """One-time tag observation when haillo starts."""
@@ -533,45 +536,98 @@ class ShellWrapper:
         except OSError:
             pass
 
-    def flush_leader(self) -> None:
-        if self.leader_armed and self.shell_master is not None:
+    def leader_keys(self) -> set[bytes]:
+        return set(self.LEADER_CMDS) | set(self.LEADER_PY)
+
+    def leader_is_prefix(self, value: bytes) -> bool:
+        return any(
+            key.startswith(value) and key != value
+            for key in self.leader_keys()
+        )
+
+    def execute_leader(self, value: bytes) -> None:
+        py = self.LEADER_PY.get(value)
+        if py is not None:
             try:
-                os.write(self.shell_master, ShellWrapper.LEADER)
+                py()
+            except Exception as e:
+                self.paint_text(
+                    sys.stdout.fileno(),
+                    f"leader py error: {e}\n",
+                )
+            return
+
+        cmd = self.LEADER_CMDS.get(value)
+        if cmd is not None and self.shell_master is not None:
+            try:
+                os.write(self.shell_master, cmd)
             except OSError:
                 pass
-            self.leader_armed = False
+
+    def flush_leader(self) -> None:
+        if self.leader_buffer is None:
+            return
+
+        value = self.leader_buffer
+        self.leader_buffer = None
+
+        if value in self.leader_keys():
+            self.execute_leader(value)
+        else:
+            try:
+                os.write(
+                    self.shell_master,
+                    ShellWrapper.LEADER + value,
+                )
+            except OSError:
+                pass
 
     def handle_leader(self, data: bytes) -> bytes:
         out = bytearray()
         i = 0
         n = len(data)
+
         while i < n:
             ch = data[i:i + 1]
-            if self.leader_armed:
-                self.leader_armed = False
-                py = self.LEADER_PY.get(ch)
-                if py is not None:
-                    try:
-                        py()
-                    except Exception as e:
-                        self.paint_text(sys.stdout.fileno(), f"leader py error: {e}\n")
+
+            if self.leader_buffer is None:
+                if ch == ShellWrapper.LEADER:
+                    self.leader_buffer = b""
                 else:
-                    cmd = ShellWrapper.LEADER_CMDS.get(ch)
-                    if cmd is not None and self.shell_master is not None:
-                        try:
-                            os.write(self.shell_master, cmd)
-                        except OSError:
-                            pass
-                    else:
-                        out += ShellWrapper.LEADER + ch
+                    out += ch
                 i += 1
                 continue
-            if ch == ShellWrapper.LEADER:
-                self.leader_armed = True
+
+            candidate = self.leader_buffer + ch
+
+            if (
+                candidate in self.leader_keys()
+                or self.leader_is_prefix(candidate)
+            ):
+                self.leader_buffer = candidate
                 i += 1
+
+                if (
+                    candidate in self.leader_keys()
+                    and not self.leader_is_prefix(candidate)
+                ):
+                    self.execute_leader(candidate)
+                    self.leader_buffer = None
+
                 continue
-            out += ch
-            i += 1
+
+            pending = self.leader_buffer
+            self.leader_buffer = None
+
+            if pending in self.leader_keys():
+                self.execute_leader(pending)
+            else:
+                out += ShellWrapper.LEADER + pending
+
+            # Re-process the current byte after resolving the pending
+            # leader sequence.
+            continue
+
         return bytes(out)
 
     def wrap(self) -> int:
@@ -598,7 +654,7 @@ class ShellWrapper:
 
         self.paint_logo(stdout_fd)
         shell_pgrp = shell_pid
-        self.leader_armed = False
+        self.leader_buffer = None
 
         signal.signal(signal.SIGWINCH, self.on_winch)
         old = termios.tcgetattr(self.stdin_fd)
@@ -614,7 +670,11 @@ class ShellWrapper:
                 if self.mux.master is not None:
                     fds.append(self.mux.master)
 
-                timeout = ShellWrapper.LEADER_TIMEOUT if self.leader_armed else None
+                timeout = (
+                    ShellWrapper.LEADER_TIMEOUT
+                    if self.leader_buffer is not None
+                    else None
+                )
                 r, _, _ = select.select(fds, [], [], timeout)
                 if not r:
                     self.flush_leader()
