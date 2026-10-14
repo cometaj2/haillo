@@ -130,9 +130,9 @@ class ShellWrapper:
             b"fi\n"
         ),
         b"as": (
-            b"hai agent skills ls | tail -n +2 | tac | "
+            b"hai agent skill ls | tail -n +2 | tac | "
             b"fzf --prompt='skill> ' | awk '{print $1}' | "
-            b"xargs -r hai agent skills set\n"
+            b"xargs -r hai agent skill set\n"
         ),
         b"s": b"hai context\n",
         b"t": b"hai title auto\n",
