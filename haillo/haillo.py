@@ -120,6 +120,7 @@ class ShellWrapper:
         b"p": b"hai provider ls | fzf --prompt='provider> ' | xargs -r hai provider set\n",
         b"c": b"hai ls | tail -n +2 | tac | fzf --prompt='context> ' | awk '{print $1}' | xargs -r hai set\n",
         b"r": b"gum confirm 'Reset this context?' --default=no && hai reset || echo '\nCancelled\n'\n",
+        b"d": b"context=$(hai ls | tail -n +2 | tac | fzf --prompt='context> ' | awk '{print $1}'); if [ -z \"$context\" ]; then echo '\nCancelled\n'; elif gum confirm \"Delete context '$context'?\" --default=no; then hai rm \"$context\"; else echo '\nCancelled\n'; fi\n",
         b"a": (
             b"st=$(hai agent enabled | tr -d '[:space:]'); "
             b"if [ \"$st\" = True ] || [ \"$st\" = true ]; then "
