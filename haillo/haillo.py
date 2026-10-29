@@ -135,6 +135,19 @@ class ShellWrapper:
             b"xargs -r hai agent skill set\n"
         ),
         b"s": b"hai context\n",
+        b"sl": (
+            b"tmp=$(mktemp); "
+            b"trap 'rm -f \"$tmp\"' EXIT; "
+            b"hai context > \"$tmp\" || exit; "
+            b"printf '\\n'; "
+            b"cat \"$tmp\";"
+            b"line=$(awk '/^----Assistant/{last=NR} END{print last+0}' \"$tmp\"); "
+            b"if [ \"$line\" -gt 0 ]; then "
+            b"vim -c \"normal! ${line}Gzt\" \"$tmp\"; "
+            b"else "
+            b"vim \"$tmp\"; "
+            b"fi;\n"
+        ),
         b"t": b"hai title auto\n",
         b"w": b"\necho \"$(fc -ln -2 | head -n1 | sed 's/^[ \\t]*#*[ \\t]*//')\" | hai --async\n",
         b",": b"haillo help\n",

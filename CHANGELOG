@@ -6,7 +6,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ## [1.1.0]
 - Add context deletion with gum confirmation
-- Add agent skill selection (,as) as secondary leader buffer sequence
+- Add ,as secondary leader for agent skill selection
+- Add ,sl secondary leader to show the beginning of the last assistant message
 - Fix the voice termination logic to make it more robust
 - Remove useless voice spawn stub code
 
