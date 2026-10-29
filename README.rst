@@ -76,7 +76,8 @@ Supports
 To Do
 -----
 
-- TBD
+- Add multi-line comment (:'') wrap support in addition to single line comment (#) support
+- Add voice pause and resume leader shortcuts
 
 Bugs
 ----

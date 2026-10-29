@@ -7,6 +7,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 ## [1.1.0]
 - Add context deletion with gum confirmation
 - Add agent skill selection (,as) as secondary leader buffer sequence
+- Fix the voice termination logic to make it more robust
 - Remove useless voice spawn stub code
 
 ## [1.0.0]
