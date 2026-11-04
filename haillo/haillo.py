@@ -25,9 +25,10 @@ import time
 import subprocess
 import config
 import threading
+
 from huckle import cli
 from typing import Callable, Optional
-
+from haillo.voice import voice as v
 
 class Spinner:
     """One character at the cursor. Cleared before real output."""
@@ -187,14 +188,21 @@ class ShellWrapper:
         self.mux: Optional[MuxApp] = None
         self.stdin_fd: Optional[int] = None
         self.current_window = None
-        self.voice_spawn_window = None
-        self.voice_active: Optional[bool] = None
-        self.voice_timer = None
+
+        self.voice = v.Voice()
         self.voice_lock = threading.Lock()
+        self.voice_spawn_window = None
+
+        self.summary_timer = None
+        self.summary_lock = threading.Lock()
+
         self.LEADER_PY: dict[bytes, Callable[[], None]] = {
             b"i": self.__proposed_commands,
             b"g": self.__run_task_to_completion,
             b"v": self.__toggle_voice,
+            b"vp": self.__pause_voice,
+            b"vr": self.__resume_voice,
+            b"=": self.__stream_voice,
         }
 
     def drop_shell_farewell(self, data: bytes) -> bytes:
@@ -261,26 +269,35 @@ class ShellWrapper:
         except ValueError:
             return False
 
+    def __stream_voice(self) -> bool:
+        if self.voice.is_enabled():
+            message = None
+            try:
+                chunks = cli("hai summary pull 380825a")
+                message = b"".join(c for d, c in chunks if d == "stdout").decode('utf-8').strip()
+            except Exception:
+                return False
+
+            try:
+                if message:
+                    self.voice.speak(message)
+            except OSError:
+                return False
+            except Exception:
+                pass
+
+            return True
+
     def __toggle_voice(self) -> bool:
 
-        voice_cmd = (
-            b"st=$(hai voice enabled | tr -d '[:space:]'); "
-            b"if [ \"$st\" = True ] || [ \"$st\" = true ]; then "
-            b"hai voice stop; echo '\nvoice assist off\n'; "
-            b"else "
-            b"hai voice start; echo '\nvoice assist on\n'; "
-            b"fi\n"
-        )
-
+        enabled = False
         try:
-            chunks = cli("hai voice enabled")
-            enabled = b"".join(c for d, c in chunks if d == "stdout").decode('utf-8').strip()
+            enabled = self.voice.toggle_voice()
         except Exception:
             return False
 
         try:
-            os.write(self.shell_master, voice_cmd)
-            if enabled == "False":
+            if enabled:
                 self.__terminate_spawn_voice()
                 self.__spawn_voice()
             else:
@@ -291,6 +308,18 @@ class ShellWrapper:
             pass
 
         return True
+
+    def __pause_voice(self) -> None:
+        try:
+            self.voice.pause()
+        except Exception:
+            pass
+
+    def __resume_voice(self) -> None:
+        try:
+            self.voice.resume()
+        except Exception:
+            pass
 
     def __proposed_commands(self) -> bool:
         try:
@@ -449,19 +478,8 @@ class ShellWrapper:
         except (OSError, ValueError, TypeError):
             return None
 
-    def __init_voice_state(self) -> None:
-
-        """One-time tag observation when haillo starts."""
-
-        observed = self.__voice_tag_active()
-        # Treat unknown as "not running" so we do not spawn a duplicate
-        # if hyprctl is briefly unavailable at launch.
-        with self.voice_lock:
-            self.voice_active = observed is True
     def __spawn_voice(self) -> None:
         with self.voice_lock:
-            if self.voice_active is True:
-                return
             try:
                 # capture current window, launch, tag, restore focus
                 # (identical body to the original, minus the tag check)
@@ -491,13 +509,11 @@ class ShellWrapper:
                      f'hl.dsp.focus({{ window = "{self.current_window}" }})'],
                     env=os.environ, capture_output=True, text=True, check=False,
                 )
-                self.voice_active = True
             except Exception:
                 pass
+
     def __terminate_spawn_voice(self, force: bool = False) -> None:
         with self.voice_lock:
-            if not force and self.voice_active is False:
-                return
             try:
                 subprocess.run(
                     ["hyprctl", "dispatch",
@@ -507,32 +523,27 @@ class ShellWrapper:
             except OSError:
                 pass
             finally:
-                self.voice_active = False
                 self.voice_spawn_window = None
-    def voice_check(self, seconds: float) -> None:
-        def check_service_availability() -> None:
+                self.voice.stop()
 
-            enabled = None
+    def summary_check(self, seconds: float) -> None:
+
+        def check_latest_summary_availability() -> None:
             try:
-                chunks = cli("hai voice enabled")
+                chunks = cli("hai summary ls")
                 enabled = b"".join(c for d, c in chunks if d == "stdout").decode().strip()
-                with self.voice_lock:
-                    currently_active = self.voice_active is True
-                if enabled == "True" and not currently_active:
-                    self.__spawn_voice()
-                elif enabled == "False" and currently_active:
-                    self.__terminate_spawn_voice()
             except Exception:
-                self.__terminate_spawn_voice()
+                pass
             finally:
-                with self.voice_lock:
-                    self.voice_timer = None
-        with self.voice_lock:
-            if self.voice_timer is not None:
+                with self.summary_lock:
+                    self.summary_timer = None
+
+        with self.summary_lock:
+            if self.summary_timer is not None:
                 return
-            self.voice_timer = threading.Timer(seconds, check_service_availability)
-            self.voice_timer.daemon = True
-            self.voice_timer.start()
+            self.summary_timer = threading.Timer(seconds, check_latest_summary_availability)
+            self.summary_timer.daemon = True
+            self.summary_timer.start()
 
     def on_winch(self, signum, frame) -> None:
         if self.stdin_fd is None or self.shell_master is None:
@@ -645,7 +656,15 @@ class ShellWrapper:
         return bytes(out)
 
     def wrap(self) -> int:
-        self.__init_voice_state()
+        try:
+            enabled = self.__voice_tag_active()
+            if enabled:
+                self.voice.set_enabled(True)
+            else:
+                self.__terminate_spawn_voice()
+                self.voice.set_enabled(False)
+        except Exception:
+            pass
 
         self.stdin_fd = sys.stdin.fileno()
         stdout_fd = sys.stdout.fileno()
@@ -677,8 +696,7 @@ class ShellWrapper:
 
         try:
             while True:
-                # voice check to periodically check on voice being enabled
-                self.voice_check(5)
+#                 self.summary_check(5)
 
                 fds = [self.stdin_fd, self.shell_master]
                 if self.mux.master is not None:
@@ -768,12 +786,12 @@ class ShellWrapper:
                     except OSError:
                         break
         finally:
-            with self.voice_lock:
-                if self.voice_timer is not None:
-                    self.voice_timer.cancel()
-                    self.voice_timer = None
-            self.__terminate_spawn_voice()
+            with self.summary_lock:
+                if self.summary_timer is not None:
+                    self.summary_timer.cancel()
+                    self.summary_timer = None
             termios.tcsetattr(self.stdin_fd, termios.TCSADRAIN, old)
+            self.voice.stop()
             if self.mux:
                 self.mux.close(announce=False)   # <-- no announcement on final exit
             try:
