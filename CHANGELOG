@@ -4,10 +4,12 @@ All notable changes to this project will be documented in this file.
 The format is loosely based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/)
 and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 
-## [1.1.0]
+## [2.0.0]
 - Add context deletion with gum confirmation
 - Add ,as secondary leader for agent skill selection
 - Add ,sl secondary leader to show the beginning of the last assistant message
+- Add ,sl secondary leader to show the beginning of the last assistant message
+- Add support for pcm streaming from hcli hai voice with local playback
 - Fix the voice termination logic to make it more robust
 - Remove useless voice spawn stub code
 
