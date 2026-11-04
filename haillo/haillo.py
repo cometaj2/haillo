@@ -273,7 +273,7 @@ class ShellWrapper:
         if self.voice.is_enabled():
             message = None
             try:
-                chunks = cli("hai summary pull 380825a")
+                chunks = cli("hai summary pull abb4331")
                 message = b"".join(c for d, c in chunks if d == "stdout").decode('utf-8').strip()
             except Exception:
                 return False

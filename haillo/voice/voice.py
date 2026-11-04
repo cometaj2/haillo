@@ -51,10 +51,6 @@ class Voice:
         completed = False
 
         try:
-            # Equivalent to:
-            #
-            #   echo "message" | hai voice
-            #
             process = subprocess.Popen(
                 ["hai", "voice"],
                 stdin=subprocess.PIPE,
@@ -70,7 +66,6 @@ class Voice:
 
                 self._process = process
 
-            # Send the request to hai voice.
             process.stdin.write(message.encode("utf-8") + b"\n")
             process.stdin.close()
 
@@ -80,27 +75,52 @@ class Voice:
 
             stdout_fd = process.stdout.fileno()
 
+            # Raw int16 PCM must be sent to sounddevice in complete frames.
+            # For mono int16, this is 2 bytes per frame.
+            frame_bytes = 2 * self.CHANNELS
+            pending = bytearray()
+
             while not cancel.is_set():
                 if not self._is_current(generation):
                     break
 
-                # os.read() returns data as it becomes available. This is
-                # preferable here to waiting for a complete buffered read.
-                pcm_data = os.read(stdout_fd, self.PCM_CHUNK_SIZE)
+                pcm_data = os.read(
+                    stdout_fd,
+                    self.PCM_CHUNK_SIZE,
+                )
 
                 if not pcm_data:
                     break
 
+                pending.extend(pcm_data)
+
+                # Only send complete PCM frames to AudioPlayer.
+                usable_bytes = len(pending) - (
+                    len(pending) % frame_bytes
+                )
+
+                if usable_bytes == 0:
+                    continue
+
+                aligned_pcm = bytes(pending[:usable_bytes])
+                del pending[:usable_bytes]
+
                 if cancel.is_set() or not self._is_current(generation):
                     break
 
-                self.player.feed(pcm_data)
+                self.player.feed(aligned_pcm)
+
+            # If the stream ends with an incomplete sample/frame, discard it.
+            # It cannot be played safely by sounddevice.
+            pending.clear()
 
             return_code = process.wait()
 
-            if (return_code == 0 and not cancel.is_set() and self._is_current(generation)):
-                # Tell AudioPlayer that the PCM stream is complete. It will
-                # drain queued audio before ending and restoring ducked audio.
+            if (
+                return_code == 0
+                and not cancel.is_set()
+                and self._is_current(generation)
+            ):
                 self.player.finish()
                 completed = True
 
@@ -120,9 +140,8 @@ class Voice:
             if process is not None:
                 self._terminate_process(process)
 
-            # On cancellation, failure, or replacement, stop playback.
-            # Do not stop it after successful finish(), because AudioPlayer
-            # must drain its remaining queued PCM.
+            # Stop playback on cancellation or failure. After successful
+            # finish(), AudioPlayer must drain its remaining queued PCM.
             if (player_started and not completed and self._is_current(generation)):
                 self.player.stop()
 
