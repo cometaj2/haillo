@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 - Add ,as secondary leader for agent skill selection
 - Add ,sl secondary leader to show the beginning of the last assistant message
 - Add ,sl secondary leader to show the beginning of the last assistant message
-- Add support for pcm streaming from hcli hai voice with local playback
+- Add support for pcm streaming from hcli hai voice with local playback and audio ducking
 - Fix the voice termination logic to make it more robust
 - Remove useless voice spawn stub code
 
