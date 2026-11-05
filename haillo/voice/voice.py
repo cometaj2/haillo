@@ -22,10 +22,14 @@ class Voice:
         self._is_enabled = False
 
     def speak(self, message):
-        if not message:
-            return
+        if not self._is_enabled or not message or not message.strip():
+            return False
 
-        self.stop()
+        with self._lock:
+            already_running = self._thread is not None
+
+        if already_running:
+            self.stop()
 
         cancel = threading.Event()
 
@@ -44,6 +48,7 @@ class Voice:
             self._thread = thread
 
         thread.start()
+        return True
 
     def _speak_worker(self, message, cancel, generation):
         process = None
@@ -69,10 +74,6 @@ class Voice:
             process.stdin.write(message.encode("utf-8") + b"\n")
             process.stdin.close()
 
-            # hai voice emits raw signed 16-bit, mono PCM at 22050 Hz.
-            self.player.start(sample_rate=self.SAMPLE_RATE, channels=self.CHANNELS)
-            player_started = True
-
             stdout_fd = process.stdout.fileno()
 
             # Raw int16 PCM must be sent to sounddevice in complete frames.
@@ -81,13 +82,10 @@ class Voice:
             pending = bytearray()
 
             while not cancel.is_set():
-                if not self._is_current(generation):
+                if not self._is_current(generation) or not self._is_enabled:
                     break
 
-                pcm_data = os.read(
-                    stdout_fd,
-                    self.PCM_CHUNK_SIZE,
-                )
+                pcm_data = os.read(stdout_fd, self.PCM_CHUNK_SIZE)
 
                 if not pcm_data:
                     break
@@ -95,9 +93,7 @@ class Voice:
                 pending.extend(pcm_data)
 
                 # Only send complete PCM frames to AudioPlayer.
-                usable_bytes = len(pending) - (
-                    len(pending) % frame_bytes
-                )
+                usable_bytes = len(pending) - (len(pending) % frame_bytes)
 
                 if usable_bytes == 0:
                     continue
@@ -107,6 +103,17 @@ class Voice:
 
                 if cancel.is_set() or not self._is_current(generation):
                     break
+
+                if not self._is_enabled:
+                    break
+
+                # hai voice emits raw signed 16-bit, mono PCM at 22050 Hz.
+                if not player_started:
+                    self.player.start(
+                        sample_rate=self.SAMPLE_RATE,
+                        channels=self.CHANNELS,
+                    )
+                    player_started = True
 
                 self.player.feed(aligned_pcm)
 
