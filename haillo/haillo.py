@@ -352,7 +352,7 @@ class ShellWrapper:
             tty_fd = os.open("/dev/tty", os.O_RDWR)
 
             result = subprocess.run(
-                ["/bin/bash", "-lc", command],
+                ["/bin/bash", "-c", command],
                 stdin=tty_fd,
                 stdout=subprocess.PIPE,
                 stderr=tty_fd,
