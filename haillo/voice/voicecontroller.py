@@ -9,12 +9,31 @@ from haillo.voice import voice as v
 
 
 class VoiceController():
+    _instance = None
+    _init_lock = threading.RLock()
+
+    def __new__(cls):
+        with cls._init_lock:
+            if cls._instance is None:
+                cls._instance = super().__new__(cls)
+                cls._instance.initialized = False
+            return cls._instance
 
     def __init__(self):
-        self.voice = v.Voice()
-        self.voice_lock = threading.Lock()
-        self.voice_spawn_window = None
-        self.current_window = None
+        if self.initialized:
+            return
+        with self._init_lock:
+            if self.initialized:
+                return
+            self.rlock = threading.RLock()
+            self.lock = threading.RLock()
+
+            self.voice = v.Voice()
+            self.voice_lock = threading.Lock()
+            self.voice_spawn_window = None
+            self.current_window = None
+
+            self.initialized = True
 
     def toggle_voice(self) -> bool:
 
