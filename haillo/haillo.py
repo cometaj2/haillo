@@ -29,6 +29,7 @@ import threading
 from huckle import cli
 from typing import Callable, Optional
 
+from haillo import commands as c
 from haillo.voice import voicecontroller as v
 from haillo.voice import summary as s
 from haillo import agent as a
@@ -83,77 +84,6 @@ class MuxApp:
 
 class ShellWrapper:
 
-    INVOKE = bytes.fromhex(os.environ.get("PTY_MUX_INVOKE", "00"))
-    LEADER = b","
-    POLL = 1.0
-    LEADER_TIMEOUT = 0.45
-
-    LEADER_CMDS = {
-        b"m": b"hai model ls | fzf --prompt='model> ' | xargs -r hai model set\n",
-        b"p": b"hai provider ls | fzf --prompt='provider> ' | xargs -r hai provider set\n",
-        b"c": b"hai ls | tail -n +2 | tac | fzf --prompt='context> ' | awk '{print $1}' | xargs -r hai set\n",
-        b"r": b"gum confirm 'Reset this context?' --default=no && hai reset || echo '\nCancelled\n'\n",
-        b"d": b"context=$(hai ls | tail -n +2 | tac | fzf --prompt='context> ' | awk '{print $1}'); if [ -z \"$context\" ]; then echo '\nCancelled\n'; elif gum confirm \"Delete context '$context'?\" --default=no; then hai rm \"$context\"; else echo '\nCancelled\n'; fi\n",
-        b"a": (
-            b"st=$(hai agent enabled | tr -d '[:space:]'); "
-            b"if [ \"$st\" = True ] || [ \"$st\" = true ]; then "
-            b"hai agent stop; echo '\nagent off\n'; "
-            b"else "
-            b"hai agent start; echo '\nagent on\n'; "
-            b"fi\n"
-        ),
-        b"as": (
-            b"hai agent skill ls | tail -n +2 | tac | "
-            b"fzf --prompt='skill> ' | awk '{print $1}' | "
-            b"xargs -r hai agent skill set\n"
-        ),
-        b"s": b"hai context\n",
-        b"sl": (
-            b"tmp=$(mktemp); "
-            b"trap 'rm -f \"$tmp\"' EXIT; "
-            b"hai context > \"$tmp\" || exit; "
-            b"printf '\\n'; "
-            b"cat \"$tmp\";"
-            b"line=$(awk '/^----Assistant/{last=NR} END{print last+0}' \"$tmp\"); "
-            b"if [ \"$line\" -gt 0 ]; then "
-            b"vim -c \"normal! ${line}Gzt\" \"$tmp\"; "
-            b"else "
-            b"vim \"$tmp\"; "
-            b"fi;\n"
-        ),
-        b"t": b"hai title auto\n",
-        b"w": b"\necho \"$(fc -ln -2 | head -n1 | sed 's/^[ \\t]*#*[ \\t]*//')\" | hai --async\n",
-        b",": b"haillo help\n",
-    }
-
-    LOGO = r"""
-  _           _ _ _
- | |__   __ _(_) | | ___
- | '_ \ / _` | | | |/ _ \
- | | | | (_| | | | | (_) |
- |_| |_|\__,_|_|_|_|\___/
-        hello halo
-     ctrl-space to hop
-
-""".lstrip("\n")
-
-    GOODBYE = r"""
-  _           _ _ _
- | |__   __ _(_) | | ___
- | '_ \ / _` | | | |/ _ \
- | | | | (_| | | | | (_) |
- |_| |_|\__,_|_|_|_|\___/
-       hello goodbye
-
-""".lstrip("\n")
-
-    SHELL_BYE = (
-        b"exit\r\n",
-        b"exit\n",
-        b"logout\r\n",
-        b"logout\n",
-    )
-
     def __init__(self):
         self.su = s.Summary()
         self.vc = v.VoiceController()
@@ -174,7 +104,7 @@ class ShellWrapper:
         }
 
     def drop_shell_farewell(self, data: bytes) -> bytes:
-        for token in ShellWrapper.SHELL_BYE:
+        for token in c.SHELL_BYE:
             if data.endswith(token):
                 return data[: -len(token)]
         return data
@@ -208,10 +138,10 @@ class ShellWrapper:
             pass
 
     def paint_logo(self, fd: int) -> None:
-        self.paint_text(fd, ShellWrapper.LOGO)
+        self.paint_text(fd, c.LOGO)
 
     def paint_goodbye(self, fd: int) -> None:
-        self.paint_text(fd, ShellWrapper.GOODBYE)
+        self.paint_text(fd, c.GOODBYE)
 
     def on_winch(self, signum, frame) -> None:
         if self.stdin_fd is None or self.shell_master is None:
@@ -230,7 +160,7 @@ class ShellWrapper:
             pass
 
     def leader_keys(self) -> set[bytes]:
-        return set(self.LEADER_CMDS) | set(self.LEADER_PY)
+        return set(c.LEADER_CMDS) | set(self.LEADER_PY)
 
     def leader_is_prefix(self, value: bytes) -> bool:
         return any(
@@ -270,7 +200,7 @@ class ShellWrapper:
             try:
                 os.write(
                     self.shell_master,
-                    ShellWrapper.LEADER + value,
+                    c.LEADER + value,
                 )
             except OSError:
                 pass
@@ -284,7 +214,7 @@ class ShellWrapper:
             ch = data[i:i + 1]
 
             if self.leader_buffer is None:
-                if ch == ShellWrapper.LEADER:
+                if ch == c.LEADER:
                     self.leader_buffer = b""
                 else:
                     out += ch
@@ -315,7 +245,7 @@ class ShellWrapper:
             if pending in self.leader_keys():
                 self.execute_leader(pending)
             else:
-                out += ShellWrapper.LEADER + pending
+                out += c.LEADER + pending
 
             # Re-process the current byte after resolving the pending
             # leader sequence.
@@ -370,7 +300,7 @@ class ShellWrapper:
                     fds.append(self.mux.master)
 
                 timeout = (
-                    ShellWrapper.LEADER_TIMEOUT
+                    c.LEADER_TIMEOUT
                     if self.leader_buffer is not None
                     else None
                 )
@@ -391,9 +321,9 @@ class ShellWrapper:
                     data = rest + data
                     rest = b""
 
-                    if ShellWrapper.INVOKE and ShellWrapper.INVOKE in data:
+                    if c.INVOKE and c.INVOKE in data:
                         self.flush_leader()
-                        pre, _, post = data.partition(ShellWrapper.INVOKE)
+                        pre, _, post = data.partition(c.INVOKE)
                         dest = self.mux.master if (self.mux.active and self.mux.master) else self.shell_master
                         if pre:
                             try:
@@ -408,7 +338,7 @@ class ShellWrapper:
                                 self.ag.set_shell(self.shell_master)
                         else:
                             try:
-                                os.write(dest, ShellWrapper.INVOKE)
+                                os.write(dest, c.INVOKE)
                             except OSError:
                                 pass
                         rest = post
