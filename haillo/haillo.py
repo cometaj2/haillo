@@ -61,7 +61,7 @@ class ShellWrapper:
             try:
                 py()
             except Exception as e:
-                self.paint_text(
+                self.mux.paint_text(
                     sys.stdout.fileno(),
                     f"leader py error: {e}\n",
                 )

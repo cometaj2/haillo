@@ -38,6 +38,7 @@ class MuxApp:
 
         signal.signal(signal.SIGWINCH, self.on_winch)
         self.old = termios.tcgetattr(self.stdin_fd)
+        self.restored = False
         tty.setraw(self.stdin_fd)
 
     def _announce(self, line: bytes) -> None:
@@ -62,7 +63,13 @@ class MuxApp:
             self._announce(b"haillo pty mux off")
 
     def restore(self):
-        termios.tcsetattr(self.stdin_fd, termios.TCSADRAIN, self.old)
+        if self.old is None or self.restored:
+            return
+
+        try:
+            termios.tcsetattr(self.stdin_fd, termios.TCSADRAIN, self.old)
+        finally:
+            self.restored = True
 
     def drop_shell_farewell(self, data: bytes) -> bytes:
         for token in c.SHELL_BYE:
