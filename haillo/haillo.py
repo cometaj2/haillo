@@ -15,11 +15,9 @@ import os
 import pty
 import select
 import signal
-import struct
 import sys
 import termios
 import tty
-import time
 import config
 
 from huckle import cli
@@ -41,8 +39,6 @@ class ShellWrapper:
 
         self.leader_buffer: Optional[bytes] = None
         self.mux: Optional[m.MuxApp] = None
-        self.shell_master: Optional[int] = None
-        self.stdin_fd: Optional[int] = None
 
         self.LEADER_PY: dict[bytes, Callable[[], None]] = {
             b"i": self.ag.proposed_commands,
@@ -52,55 +48,6 @@ class ShellWrapper:
             b"vr": self.vc.resume_voice,
             b"vs": self.su.select_summary_and_stream,
         }
-
-    def drop_shell_farewell(self, data: bytes) -> bytes:
-        for token in c.SHELL_BYE:
-            if data.endswith(token):
-                return data[: -len(token)]
-        return data
-
-    def winsize(self, fd: int) -> bytes:
-        return fcntl.ioctl(fd, termios.TIOCGWINSZ, b"\x00" * 8)
-
-    def set_winsize(self, fd: int, raw: bytes) -> None:
-        fcntl.ioctl(fd, termios.TIOCSWINSZ, raw)
-
-    def fg_pgrp(self, fd: int) -> Optional[int]:
-        try:
-            packed = fcntl.ioctl(fd, termios.TIOCGPGRP, struct.pack("i", 0))
-            pgrp = struct.unpack("i", packed)[0]
-            return pgrp if pgrp > 0 else None
-        except OSError:
-            return None
-
-    def at_shell_prompt(self, shell_pgrp: int) -> bool:
-        pgrp = self.fg_pgrp(self.shell_master)
-        return pgrp is not None and pgrp == shell_pgrp
-
-    def paint_text(self, fd: int, text: str) -> None:
-        if fd != sys.stdout.fileno() and not text.endswith("\n"):
-            text += "\n"
-        payload = text.replace("\n", "\r\n").encode()
-        try:
-            os.write(fd, payload)
-            time.sleep(0.1)
-        except OSError:
-            pass
-
-    def paint_logo(self, fd: int) -> None:
-        self.paint_text(fd, c.LOGO)
-
-    def paint_goodbye(self, fd: int) -> None:
-        self.paint_text(fd, c.GOODBYE)
-
-    def on_winch(self, signum, frame) -> None:
-        if self.stdin_fd is None or self.shell_master is None:
-            return
-        try:
-            raw = self.winsize(self.stdin_fd)
-            self.set_winsize(self.shell_master, raw)
-        except OSError:
-            pass
 
     def leader_keys(self) -> set[bytes]:
         return set(c.LEADER_BASH_COMMANDS) | set(self.LEADER_PY)
@@ -217,28 +164,28 @@ class ShellWrapper:
         shell_pid, shell_master = pty.fork()
         if shell_pid == 0:
             os.execvp(shell, [shell, "-l"])
-
         self.shell_master = shell_master
+
         self.ag.set_shell(self.shell_master, self.stdin_fd)
-        self.mux = m.MuxApp()
+        self.mux = m.MuxApp(self.shell_master, self.stdin_fd)
 
         try:
-            self.set_winsize(self.shell_master, self.winsize(self.stdin_fd))
+            self.mux.set_winsize(self.mux.shell_master, self.mux.winsize(self.mux.stdin_fd))
         except OSError:
             pass
 
-        self.paint_logo(stdout_fd)
+        self.mux.paint_logo(stdout_fd)
         shell_pgrp = shell_pid
         self.leader_buffer = None
 
-        signal.signal(signal.SIGWINCH, self.on_winch)
-        old = termios.tcgetattr(self.stdin_fd)
-        tty.setraw(self.stdin_fd)
+        signal.signal(signal.SIGWINCH, self.mux.on_winch)
+        old = termios.tcgetattr(self.mux.stdin_fd)
+        tty.setraw(self.mux.stdin_fd)
         rest = b""
 
         try:
             while True:
-                fds = [self.stdin_fd, self.shell_master]
+                fds = [self.mux.stdin_fd, self.mux.shell_master]
 
                 timeout = (
                     c.LEADER_TIMEOUT
@@ -250,9 +197,9 @@ class ShellWrapper:
                     self.flush_leader()
                     continue
 
-                if self.stdin_fd in r:
+                if self.mux.stdin_fd in r:
                     try:
-                        data = os.read(self.stdin_fd, 1024)
+                        data = os.read(self.mux.stdin_fd, 1024)
                     except OSError as e:
                         if e.errno == errno.EINTR:
                             continue
@@ -267,42 +214,42 @@ class ShellWrapper:
                         pre, _, post = data.partition(c.INVOKE)
                         if pre:
                             try:
-                                os.write(self.shell_master, pre)
+                                os.write(self.mux.shell_master, pre)
                             except OSError:
                                 pass
-                        if self.at_shell_prompt(shell_pgrp):
+                        if self.mux.at_shell_prompt(shell_pgrp):
                             if self.mux.active:
                                 self.mux.stop(announce=True)
                             else:
-                                self.mux.start(self.shell_master)
-                                self.ag.set_shell(self.shell_master, self.stdin_fd)
+                                self.mux.start()
+                                self.ag.set_shell(self.mux.shell_master, self.mux.stdin_fd)
                         else:
                             try:
-                                os.write(self.shell_master, c.INVOKE)
+                                os.write(self.mux.shell_master, c.INVOKE)
                             except OSError:
                                 pass
                         rest = post
                         continue
 
-                    if self.mux.active and self.at_shell_prompt(shell_pgrp):
+                    if self.mux.active and self.mux.at_shell_prompt(shell_pgrp):
                         data = self.handle_leader(data)
                     else:
                         self.flush_leader()
                     if data:
                         try:
-                            os.write(self.shell_master, data)
+                            os.write(self.mux.shell_master, data)
                         except OSError:
                             if self.mux.active:
                                 self.mux.stop()
 
-                if self.shell_master in r:
+                if self.mux.shell_master in r:
                     try:
-                        out = os.read(self.shell_master, 4096)
+                        out = os.read(self.mux.shell_master, 4096)
                     except OSError:
                         break
                     if not out:
                         break
-                    out = self.drop_shell_farewell(out)
+                    out = self.mux.drop_shell_farewell(out)
                     if not out:
                         break
                     try:
@@ -317,19 +264,21 @@ class ShellWrapper:
             if self.su.summary_thread is not None:
                 self.su.summary_thread.join(timeout=1)
 
-            termios.tcsetattr(self.stdin_fd, termios.TCSADRAIN, old)
+            termios.tcsetattr(self.mux.stdin_fd, termios.TCSADRAIN, old)
             self.vc.voice.stop()
+
             if self.mux:
                 self.mux.stop(announce=False)   # <-- no announcement on final exit
             try:
-                os.close(self.shell_master)
+                os.close(self.mux.shell_master)
             except OSError:
                 pass
             try:
                 os.waitpid(shell_pid, 0)
             except OSError:
                 pass
-            self.paint_goodbye(stdout_fd)
+
+            self.mux.paint_goodbye(stdout_fd)
         return 0
 
 def main() -> int:

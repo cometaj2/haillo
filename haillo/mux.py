@@ -1,16 +1,22 @@
 import os
 import sys
 import signal
-
+import time
+import fcntl
+import termios
+import struct
 
 from typing import Optional
+
+from haillo import commands as c
 
 
 class MuxApp:
 
-    def __init__(self) -> None:
+    def __init__(self, shell_master, stdin_fd) -> None:
         self.active = False
-        self.shell_master: Optional[int] = None
+        self.shell_master: Optional[int] = shell_master
+        self.stdin_fd: Optional[int] = stdin_fd
 
     def _announce(self, line: bytes) -> None:
         try:
@@ -23,8 +29,7 @@ class MuxApp:
             except OSError:
                 pass
 
-    def start(self, shell_master: int) -> None:
-        self.shell_master = shell_master
+    def start(self) -> None:
         self.active = True
         self._announce(b"haillo pty mux on")
 
@@ -33,3 +38,52 @@ class MuxApp:
         self.active = False
         if announce and was_active:
             self._announce(b"haillo pty mux off")
+
+    def drop_shell_farewell(self, data: bytes) -> bytes:
+        for token in c.SHELL_BYE:
+            if data.endswith(token):
+                return data[: -len(token)]
+        return data
+
+    def winsize(self, fd: int) -> bytes:
+        return fcntl.ioctl(fd, termios.TIOCGWINSZ, b"\x00" * 8)
+
+    def set_winsize(self, fd: int, raw: bytes) -> None:
+        fcntl.ioctl(fd, termios.TIOCSWINSZ, raw)
+
+    def fg_pgrp(self, fd: int) -> Optional[int]:
+        try:
+            packed = fcntl.ioctl(fd, termios.TIOCGPGRP, struct.pack("i", 0))
+            pgrp = struct.unpack("i", packed)[0]
+            return pgrp if pgrp > 0 else None
+        except OSError:
+            return None
+
+    def at_shell_prompt(self, shell_pgrp: int) -> bool:
+        pgrp = self.fg_pgrp(self.shell_master)
+        return pgrp is not None and pgrp == shell_pgrp
+
+    def paint_text(self, fd: int, text: str) -> None:
+        if fd != sys.stdout.fileno() and not text.endswith("\n"):
+            text += "\n"
+        payload = text.replace("\n", "\r\n").encode()
+        try:
+            os.write(fd, payload)
+            time.sleep(0.1)
+        except OSError:
+            pass
+
+    def paint_logo(self, fd: int) -> None:
+        self.paint_text(fd, c.LOGO)
+
+    def paint_goodbye(self, fd: int) -> None:
+        self.paint_text(fd, c.GOODBYE)
+
+    def on_winch(self, signum, frame) -> None:
+        if self.stdin_fd is None or self.shell_master is None:
+            return
+        try:
+            raw = self.winsize(self.stdin_fd)
+            self.set_winsize(self.shell_master, raw)
+        except OSError:
+            pass
