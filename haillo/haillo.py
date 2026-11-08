@@ -239,6 +239,7 @@ class ShellWrapper:
             if self.mux:
                 self.mux.stop(announce=False)   # <-- no announcement on final exit
                 self.mux.paint_goodbye()
+                self.mux.restore()
             try:
                 os.close(self.mux.shell_master)
             except OSError:
@@ -248,7 +249,6 @@ class ShellWrapper:
             except OSError:
                 pass
 
-            self.mux.restore()
         return 0
 
 def main() -> int:
