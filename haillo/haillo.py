@@ -30,56 +30,10 @@ from huckle import cli
 from typing import Callable, Optional
 
 from haillo import commands as c
+from haillo import mux as m
 from haillo.voice import voicecontroller as v
 from haillo.voice import summary as s
 from haillo import agent as a
-
-
-class MuxApp:
-
-    def __init__(self) -> None:
-        self.pid: Optional[int] = None
-        self.master: Optional[int] = None
-        self.active = False
-        self.shell_master: Optional[int] = None
-
-    def _announce(self, line: bytes) -> None:
-        try:
-            os.write(sys.stdout.fileno(), line)
-        except OSError:
-            pass
-        if self.shell_master is not None:
-            try:
-                os.write(self.shell_master, b"\n")
-            except OSError:
-                pass
-
-    def spawn(self, shell_master: int) -> None:
-        self.shell_master = shell_master
-        self.active = True
-        self._announce(b"haillo pty mux on")
-
-    def close(self, announce: bool = False) -> None:
-        if self.master is not None:
-            try:
-                os.close(self.master)
-            except OSError:
-                pass
-        if self.pid is not None:
-            try:
-                os.kill(self.pid, signal.SIGTERM)
-            except OSError:
-                pass
-            try:
-                os.waitpid(self.pid, os.WNOHANG)
-            except OSError:
-                pass
-        self.pid = None
-        self.master = None
-        was_active = self.active
-        self.active = False
-        if announce and was_active:
-            self._announce(b"haillo pty mux off")
 
 
 class ShellWrapper:
@@ -180,7 +134,7 @@ class ShellWrapper:
                 )
             return
 
-        cmd = self.LEADER_CMDS.get(value)
+        cmd = c.LEADER_CMDS.get(value)
         if cmd is not None and self.shell_master is not None:
             try:
                 os.write(self.shell_master, cmd)
@@ -277,7 +231,7 @@ class ShellWrapper:
 
         self.shell_master = shell_master
         self.ag.set_shell(self.shell_master)
-        self.mux = MuxApp()
+        self.mux = m.MuxApp()
 
         try:
             self.set_winsize(self.shell_master, self.winsize(self.stdin_fd))
@@ -332,9 +286,9 @@ class ShellWrapper:
                                 pass
                         if self.at_shell_prompt(shell_pgrp):
                             if self.mux.active:
-                                self.mux.close(announce=True)
+                                self.mux.stop(announce=True)
                             else:
-                                self.mux.spawn(self.shell_master)
+                                self.mux.start(self.shell_master)
                                 self.ag.set_shell(self.shell_master)
                         else:
                             try:
@@ -354,7 +308,7 @@ class ShellWrapper:
                             os.write(dest, data)
                         except OSError:
                             if self.mux.active:
-                                self.mux.close()
+                                self.mux.stop()
 
                 if self.mux.master is not None and self.mux.master in r:
                     try:
@@ -362,7 +316,7 @@ class ShellWrapper:
                     except OSError:
                         out = b""
                     if not out:
-                        self.mux.close()
+                        self.mux.stop()
                     else:
                         try:
                             os.write(stdout_fd, out)
@@ -394,7 +348,7 @@ class ShellWrapper:
             termios.tcsetattr(self.stdin_fd, termios.TCSADRAIN, old)
             self.vc.voice.stop()
             if self.mux:
-                self.mux.close(announce=False)   # <-- no announcement on final exit
+                self.mux.stop(announce=False)   # <-- no announcement on final exit
             try:
                 os.close(self.shell_master)
             except OSError:
