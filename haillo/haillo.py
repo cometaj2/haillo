@@ -159,7 +159,7 @@ class ShellWrapper:
         except OSError:
             pass
 
-        self.mux.paint_logo(self.mux.stdout_fd)
+        self.mux.paint_logo()
         self.leader_buffer = None
 
         signal.signal(signal.SIGWINCH, self.mux.on_winch)
@@ -262,7 +262,7 @@ class ShellWrapper:
             except OSError:
                 pass
 
-            self.mux.paint_goodbye(self.mux.stdout_fd)
+            self.mux.paint_goodbye()
         return 0
 
 def main() -> int:

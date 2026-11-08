@@ -85,11 +85,11 @@ class MuxApp:
         except OSError:
             pass
 
-    def paint_logo(self, fd: int) -> None:
-        self.paint_text(fd, c.LOGO)
+    def paint_logo(self) -> None:
+        self.paint_text(self.stdout_fd, c.LOGO)
 
-    def paint_goodbye(self, fd: int) -> None:
-        self.paint_text(fd, c.GOODBYE)
+    def paint_goodbye(self) -> None:
+        self.paint_text(self.stdout_fd, c.GOODBYE)
 
     def on_winch(self, signum, frame) -> None:
         if self.stdin_fd is None or self.shell_master is None:
