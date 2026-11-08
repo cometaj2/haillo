@@ -41,8 +41,8 @@ class ShellWrapper:
         self.ag = a.Agent()
 
         self.leader_buffer: Optional[bytes] = None
-        self.shell_master: Optional[int] = None
         self.mux: Optional[MuxApp] = None
+        self.shell_master: Optional[int] = None
         self.stdin_fd: Optional[int] = None
 
         self.LEADER_PY: dict[bytes, Callable[[], None]] = {
@@ -227,7 +227,7 @@ class ShellWrapper:
             os.execvp(shell, [shell, "-l"])
 
         self.shell_master = shell_master
-        self.ag.set_shell(self.shell_master)
+        self.ag.set_shell(self.shell_master, self.stdin_fd)
         self.mux = m.MuxApp()
 
         try:
@@ -286,7 +286,7 @@ class ShellWrapper:
                                 self.mux.stop(announce=True)
                             else:
                                 self.mux.start(self.shell_master)
-                                self.ag.set_shell(self.shell_master)
+                                self.ag.set_shell(self.shell_master, self.stdin_fd)
                         else:
                             try:
                                 os.write(dest, c.INVOKE)

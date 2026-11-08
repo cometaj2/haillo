@@ -3,19 +3,24 @@ import sys
 import bashlex
 import json
 import time
+import select
 
 from haillo import spinner as sp
 from haillo import commands as c
 from huckle import cli
 
+from typing import Callable, Optional
+
 
 class Agent():
 
     def __init__(self):
-        self.shell_master = None
+        self.shell_master: Optional[int] = None
+        self.stdin_fd: Optional[int] = None
 
-    def set_shell(self, shell_master):
+    def set_shell(self, shell_master, stdin_fd):
         self.shell_master = shell_master
+        self.stdin_fd = stdin_fd
 
     def validate_bash_command(self, command_string: str, whitelist) -> bool:
         def check_node(node):
