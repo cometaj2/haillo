@@ -100,13 +100,6 @@ class ShellWrapper:
         try:
             raw = self.winsize(self.stdin_fd)
             self.set_winsize(self.shell_master, raw)
-            if self.mux and self.mux.master is not None:
-                self.set_winsize(self.mux.master, raw)
-                if self.mux.pid:
-                    try:
-                        os.kill(self.mux.pid, signal.SIGWINCH)
-                    except OSError:
-                        pass
         except OSError:
             pass
 
@@ -247,8 +240,6 @@ class ShellWrapper:
         try:
             while True:
                 fds = [self.stdin_fd, self.shell_master]
-                if self.mux.master is not None:
-                    fds.append(self.mux.master)
 
                 timeout = (
                     c.LEADER_TIMEOUT
@@ -275,10 +266,9 @@ class ShellWrapper:
                     if c.INVOKE and c.INVOKE in data:
                         self.flush_leader()
                         pre, _, post = data.partition(c.INVOKE)
-                        dest = self.mux.master if (self.mux.active and self.mux.master) else self.shell_master
                         if pre:
                             try:
-                                os.write(dest, pre)
+                                os.write(self.shell_master, pre)
                             except OSError:
                                 pass
                         if self.at_shell_prompt(shell_pgrp):
@@ -289,36 +279,22 @@ class ShellWrapper:
                                 self.ag.set_shell(self.shell_master, self.stdin_fd)
                         else:
                             try:
-                                os.write(dest, c.INVOKE)
+                                os.write(self.shell_master, c.INVOKE)
                             except OSError:
                                 pass
                         rest = post
                         continue
 
-                    dest = self.mux.master if (self.mux.active and self.mux.master) else self.shell_master
                     if self.mux.active and self.at_shell_prompt(shell_pgrp):
                         data = self.handle_leader(data)
                     else:
                         self.flush_leader()
                     if data:
                         try:
-                            os.write(dest, data)
+                            os.write(self.shell_master, data)
                         except OSError:
                             if self.mux.active:
                                 self.mux.stop()
-
-                if self.mux.master is not None and self.mux.master in r:
-                    try:
-                        out = os.read(self.mux.master, 4096)
-                    except OSError:
-                        out = b""
-                    if not out:
-                        self.mux.stop()
-                    else:
-                        try:
-                            os.write(stdout_fd, out)
-                        except OSError:
-                            break
 
                 if self.shell_master in r:
                     try:
