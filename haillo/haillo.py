@@ -27,8 +27,7 @@ from typing import Callable, Optional
 
 from haillo import commands as c
 from haillo import mux as m
-from haillo import spinner as sp
-from haillo import agent as a
+from haillo.agent import agent as a
 from haillo.voice import voicecontroller as v
 from haillo.voice import summary as s
 

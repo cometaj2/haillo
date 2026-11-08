@@ -5,8 +5,7 @@ import json
 import time
 import select
 
-from haillo import spinner as sp
-from haillo import commands as c
+from haillo.agent import spinner as sp
 from huckle import cli
 
 from typing import Callable, Optional
@@ -166,7 +165,7 @@ class Agent():
                     except OSError:
                         pass
                     break
-                if self.forward(c.POLL, spin):
+                if self.forward(1.0, spin):
                     break
         finally:
             restore_echo()
