@@ -82,9 +82,9 @@ class MuxApp:
         except OSError:
             return None
 
-    def at_shell_prompt(self, shell_pgrp: int) -> bool:
+    def at_shell_prompt(self) -> bool:
         pgrp = self.fg_pgrp(self.shell_master)
-        return pgrp is not None and pgrp == shell_pgrp
+        return pgrp is not None and pgrp == self.shell_pid
 
     def paint_text(self, fd: int, text: str) -> None:
         if fd != sys.stdout.fileno() and not text.endswith("\n"):

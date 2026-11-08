@@ -191,12 +191,11 @@ class ShellWrapper:
                                 os.write(self.mux.shell_master, pre)
                             except OSError:
                                 pass
-                        if self.mux.at_shell_prompt(self.mux.shell_pid):
+                        if self.mux.at_shell_prompt():
                             if self.mux.active:
                                 self.mux.stop(announce=True)
                             else:
                                 self.mux.start()
-                                self.ag.set_shell(self.mux.shell_master, self.mux.stdin_fd)
                         else:
                             try:
                                 os.write(self.mux.shell_master, c.INVOKE)
@@ -205,7 +204,7 @@ class ShellWrapper:
                         rest = post
                         continue
 
-                    if self.mux.active and self.mux.at_shell_prompt(self.mux.shell_pid):
+                    if self.mux.active and self.mux.at_shell_prompt():
                         data = self.handle_leader(data)
                     else:
                         self.flush_leader()
@@ -234,7 +233,6 @@ class ShellWrapper:
 
             # Summary thread termination
             self.su.summary_stop.set()
-
             if self.su.summary_thread is not None:
                 self.su.summary_thread.join(timeout=1)
 
