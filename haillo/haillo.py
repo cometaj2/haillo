@@ -175,7 +175,6 @@ class ShellWrapper:
             pass
 
         self.mux.paint_logo(stdout_fd)
-        shell_pgrp = shell_pid
         self.leader_buffer = None
 
         signal.signal(signal.SIGWINCH, self.mux.on_winch)
@@ -217,7 +216,7 @@ class ShellWrapper:
                                 os.write(self.mux.shell_master, pre)
                             except OSError:
                                 pass
-                        if self.mux.at_shell_prompt(shell_pgrp):
+                        if self.mux.at_shell_prompt(shell_pid):
                             if self.mux.active:
                                 self.mux.stop(announce=True)
                             else:
@@ -231,7 +230,7 @@ class ShellWrapper:
                         rest = post
                         continue
 
-                    if self.mux.active and self.mux.at_shell_prompt(shell_pgrp):
+                    if self.mux.active and self.mux.at_shell_prompt(shell_pid):
                         data = self.handle_leader(data)
                     else:
                         self.flush_leader()
