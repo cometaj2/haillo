@@ -2,7 +2,6 @@ import os
 
 INVOKE = bytes.fromhex(os.environ.get("PTY_MUX_INVOKE", "00"))
 LEADER = b","
-POLL = 1.0
 LEADER_TIMEOUT = 0.45
 
 LEADER_BASH_COMMANDS = {
