@@ -1,12 +1,12 @@
 import os
 import sys
-import pty
 import signal
 import time
 import fcntl
 import termios
 import struct
 import tty
+import pty
 
 from typing import Optional
 
@@ -56,11 +56,13 @@ class MuxApp:
         self._announce(b"haillo pty mux on")
 
     def stop(self, announce: bool = False) -> None:
-        termios.tcsetattr(self.stdin_fd, termios.TCSADRAIN, self.old)
         was_active = self.active
         self.active = False
         if announce and was_active:
             self._announce(b"haillo pty mux off")
+
+    def restore(self):
+        termios.tcsetattr(self.stdin_fd, termios.TCSADRAIN, self.old)
 
     def drop_shell_farewell(self, data: bytes) -> bytes:
         for token in c.SHELL_BYE:

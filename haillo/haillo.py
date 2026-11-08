@@ -10,18 +10,16 @@ When mux is on and the shell owns the tty, "," is a leader key.
 """
 
 import errno
-import fcntl
 import os
 import select
-import signal
 import sys
 import config
 
 from huckle import cli
 from typing import Callable, Optional
 
-from haillo import commands as c
-from haillo import mux as m
+import commands as c
+import mux as m
 from haillo.agent import agent as a
 from haillo.voice import voicecontroller as v
 from haillo.voice import summary as s
@@ -250,6 +248,7 @@ class ShellWrapper:
             except OSError:
                 pass
 
+            self.mux.restore()
         return 0
 
 def main() -> int:
