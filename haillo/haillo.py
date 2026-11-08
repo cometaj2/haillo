@@ -41,7 +41,7 @@ class ShellWrapper:
         self.ag = a.Agent()
 
         self.leader_buffer: Optional[bytes] = None
-        self.mux: Optional[MuxApp] = None
+        self.mux: Optional[m.MuxApp] = None
         self.shell_master: Optional[int] = None
         self.stdin_fd: Optional[int] = None
 

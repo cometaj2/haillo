@@ -1,5 +1,9 @@
 import os
 import sys
+import signal
+
+
+from typing import Optional
 
 
 class MuxApp:
