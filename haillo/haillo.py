@@ -32,7 +32,8 @@ class ShellWrapper:
         self.vc = v.VoiceController()
         self.ag = a.Agent()
 
-        self.mux: Optional[m.MuxApp] = None
+        self.mux = m.MuxApp()
+        self.mux.paint_logo()
 
         self.leader_buffer: Optional[bytes] = None
 
@@ -137,22 +138,9 @@ class ShellWrapper:
         return bytes(out)
 
     def wrap(self) -> int:
-        try:
-            enabled = self.vc.voice_tag_active()
-            if enabled:
-                self.vc.voice.set_enabled(True)
-            else:
-                self.vc.terminate_spawn_voice()
-                self.vc.voice.set_enabled(False)
-        except Exception:
-            pass
 
-        self.mux = m.MuxApp()
-        self.mux.paint_logo()
-
+        self.vc.discover_voice_state()
         self.ag.set_shell(self.mux.shell_master, self.mux.stdin_fd)
-
-        self.leader_buffer = None
 
         rest = b""
         try:

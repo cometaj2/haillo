@@ -170,3 +170,14 @@ class VoiceController():
             finally:
                 self.voice_spawn_window = None
                 self.voice.stop()
+
+    def discover_voice_state(self):
+        try:
+            enabled = self.voice_tag_active()
+            if enabled:
+                self.voice.set_enabled(True)
+            else:
+                self.terminate_spawn_voice()
+                self.voice.set_enabled(False)
+        except Exception:
+            pass
