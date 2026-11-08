@@ -5,7 +5,7 @@ LEADER = b","
 POLL = 1.0
 LEADER_TIMEOUT = 0.45
 
-LEADER_CMDS = {
+LEADER_BASH_COMMANDS = {
     b"m": b"hai model ls | fzf --prompt='model> ' | xargs -r hai model set\n",
     b"p": b"hai provider ls | fzf --prompt='provider> ' | xargs -r hai provider set\n",
     b"c": b"hai ls | tail -n +2 | tac | fzf --prompt='context> ' | awk '{print $1}' | xargs -r hai set\n",

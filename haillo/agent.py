@@ -1,16 +1,18 @@
 import os
 import sys
+import bashlex
+import json
+import time
 
+from haillo import spinner as sp
+from haillo import commands as c
 from huckle import cli
-from typing import Callable, Optional
-
-from haillo import spinner as s
 
 
 class Agent():
 
     def __init__(self):
-        self.shell_master: Optional[int] = None
+        self.shell_master = None
 
     def set_shell(self, shell_master):
         self.shell_master = shell_master
@@ -88,7 +90,7 @@ class Agent():
             return False
         return allowed
 
-    def forward(self, seconds: float, spin: Optional[Spinner] = None) -> bool:
+    def forward(self, seconds: float, spin: Optional[sp.Spinner] = None) -> bool:
         stdin_fd = self.stdin_fd
         stdout_fd = sys.stdout.fileno()
         end = time.monotonic() + seconds
@@ -130,7 +132,7 @@ class Agent():
                     return True
 
     def run_task_to_completion(self) -> None:
-        spin = s.Spinner(sys.stdout.fileno())
+        spin = sp.Spinner(sys.stdout.fileno())
 
         def restore_echo():
             spin.clear()
@@ -159,7 +161,8 @@ class Agent():
                     except OSError:
                         pass
                     break
-                if self.forward(ShellWrapper.POLL, spin):
+                if self.forward(c.POLL, spin):
                     break
         finally:
             restore_echo()
+

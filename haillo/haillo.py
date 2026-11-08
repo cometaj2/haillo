@@ -19,21 +19,18 @@ import struct
 import sys
 import termios
 import tty
-import bashlex
-import json
 import time
-import subprocess
 import config
-import threading
 
 from huckle import cli
 from typing import Callable, Optional
 
 from haillo import commands as c
 from haillo import mux as m
+from haillo import spinner as sp
+from haillo import agent as a
 from haillo.voice import voicecontroller as v
 from haillo.voice import summary as s
-from haillo import agent as a
 
 
 class ShellWrapper:
@@ -114,7 +111,7 @@ class ShellWrapper:
             pass
 
     def leader_keys(self) -> set[bytes]:
-        return set(c.LEADER_CMDS) | set(self.LEADER_PY)
+        return set(c.LEADER_BASH_COMMANDS) | set(self.LEADER_PY)
 
     def leader_is_prefix(self, value: bytes) -> bool:
         return any(
@@ -134,7 +131,7 @@ class ShellWrapper:
                 )
             return
 
-        cmd = c.LEADER_CMDS.get(value)
+        cmd = c.LEADER_BASH_COMMANDS.get(value)
         if cmd is not None and self.shell_master is not None:
             try:
                 os.write(self.shell_master, cmd)

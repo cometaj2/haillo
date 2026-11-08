@@ -3,6 +3,9 @@ import traceback
 import subprocess
 import threading
 import config
+import json
+
+from typing import Optional
 
 from huckle import cli, stdin
 from haillo.voice import voice as v
