@@ -1,5 +1,6 @@
 import os
 import sys
+import pty
 import signal
 import time
 import fcntl
@@ -13,10 +14,21 @@ from haillo import commands as c
 
 class MuxApp:
 
-    def __init__(self, shell_master, stdin_fd) -> None:
+    def __init__(self) -> None:
         self.active = False
-        self.shell_master: Optional[int] = shell_master
-        self.stdin_fd: Optional[int] = stdin_fd
+
+        self.stdin_fd = sys.stdin.fileno()
+        self.stdout_fd = sys.stdout.fileno()
+        if not os.isatty(self.stdin_fd):
+            sys.stderr.write("pty_mux: stdin is not a tty\n")
+            exti(1)
+
+        shell = os.environ.get("SHELL", "/bin/bash")
+        shell_pid, shell_master = pty.fork()
+        if shell_pid == 0:
+            os.execvp(shell, [shell, "-l"])
+        self.shell_pid = shell_pid
+        self.shell_master = shell_master
 
     def _announce(self, line: bytes) -> None:
         try:

@@ -12,7 +12,6 @@ When mux is on and the shell owns the tty, "," is a leader key.
 import errno
 import fcntl
 import os
-import pty
 import select
 import signal
 import sys
@@ -37,8 +36,9 @@ class ShellWrapper:
         self.vc = v.VoiceController()
         self.ag = a.Agent()
 
-        self.leader_buffer: Optional[bytes] = None
         self.mux: Optional[m.MuxApp] = None
+
+        self.leader_buffer: Optional[bytes] = None
 
         self.LEADER_PY: dict[bytes, Callable[[], None]] = {
             b"i": self.ag.proposed_commands,
@@ -71,9 +71,9 @@ class ShellWrapper:
             return
 
         cmd = c.LEADER_BASH_COMMANDS.get(value)
-        if cmd is not None and self.shell_master is not None:
+        if cmd is not None and self.mux.shell_master is not None:
             try:
-                os.write(self.shell_master, cmd)
+                os.write(self.mux.shell_master, cmd)
             except OSError:
                 pass
 
@@ -88,10 +88,7 @@ class ShellWrapper:
             self.execute_leader(value)
         else:
             try:
-                os.write(
-                    self.shell_master,
-                    c.LEADER + value,
-                )
+                os.write(self.mux.shell_master, c.LEADER + value)
             except OSError:
                 pass
 
@@ -154,27 +151,15 @@ class ShellWrapper:
         except Exception:
             pass
 
-        self.stdin_fd = sys.stdin.fileno()
-        stdout_fd = sys.stdout.fileno()
-        if not os.isatty(self.stdin_fd):
-            sys.stderr.write("pty_mux: stdin is not a tty\n")
-            return 1
-
-        shell = os.environ.get("SHELL", "/bin/bash")
-        shell_pid, shell_master = pty.fork()
-        if shell_pid == 0:
-            os.execvp(shell, [shell, "-l"])
-        self.shell_master = shell_master
-
-        self.ag.set_shell(self.shell_master, self.stdin_fd)
-        self.mux = m.MuxApp(self.shell_master, self.stdin_fd)
+        self.mux = m.MuxApp()
+        self.ag.set_shell(self.mux.shell_master, self.mux.stdin_fd)
 
         try:
             self.mux.set_winsize(self.mux.shell_master, self.mux.winsize(self.mux.stdin_fd))
         except OSError:
             pass
 
-        self.mux.paint_logo(stdout_fd)
+        self.mux.paint_logo(self.mux.stdout_fd)
         self.leader_buffer = None
 
         signal.signal(signal.SIGWINCH, self.mux.on_winch)
@@ -216,7 +201,7 @@ class ShellWrapper:
                                 os.write(self.mux.shell_master, pre)
                             except OSError:
                                 pass
-                        if self.mux.at_shell_prompt(shell_pid):
+                        if self.mux.at_shell_prompt(self.mux.shell_pid):
                             if self.mux.active:
                                 self.mux.stop(announce=True)
                             else:
@@ -230,7 +215,7 @@ class ShellWrapper:
                         rest = post
                         continue
 
-                    if self.mux.active and self.mux.at_shell_prompt(shell_pid):
+                    if self.mux.active and self.mux.at_shell_prompt(self.mux.shell_pid):
                         data = self.handle_leader(data)
                     else:
                         self.flush_leader()
@@ -252,7 +237,7 @@ class ShellWrapper:
                     if not out:
                         break
                     try:
-                        os.write(stdout_fd, out)
+                        os.write(self.mux.stdout_fd, out)
                     except OSError:
                         break
         finally:
@@ -273,11 +258,11 @@ class ShellWrapper:
             except OSError:
                 pass
             try:
-                os.waitpid(shell_pid, 0)
+                os.waitpid(self.mux.shell_pid, 0)
             except OSError:
                 pass
 
-            self.mux.paint_goodbye(stdout_fd)
+            self.mux.paint_goodbye(self.mux.stdout_fd)
         return 0
 
 def main() -> int:
