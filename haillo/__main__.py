@@ -9,7 +9,7 @@ from . import hutils
 from . import haillo
 
 
-# prototype generator to identity generators as a type
+# prototype generator to identify generators as a type
 def generator():
     yield
 

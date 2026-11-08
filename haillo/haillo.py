@@ -332,11 +332,9 @@ class ShellWrapper:
             self.paint_goodbye(stdout_fd)
         return 0
 
-
 def main() -> int:
     sw = ShellWrapper()
     return sw.wrap()
-
 
 if __name__ == "__main__":
     raise SystemExit(main())
