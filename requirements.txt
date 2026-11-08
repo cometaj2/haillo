@@ -1,3 +1,5 @@
 huckle>=5.9.0,<6.0.0
 hcli_hai>=5.0.0,<6.0.0
+sounddevice==0.5.6
+numpy==2.4.4
 bashlex==0.18
