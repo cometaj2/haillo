@@ -15,8 +15,6 @@ import os
 import select
 import signal
 import sys
-import termios
-import tty
 import config
 
 from huckle import cli
@@ -152,21 +150,13 @@ class ShellWrapper:
             pass
 
         self.mux = m.MuxApp()
+        self.mux.paint_logo()
+
         self.ag.set_shell(self.mux.shell_master, self.mux.stdin_fd)
 
-        try:
-            self.mux.set_winsize(self.mux.shell_master, self.mux.winsize(self.mux.stdin_fd))
-        except OSError:
-            pass
-
-        self.mux.paint_logo()
         self.leader_buffer = None
 
-        signal.signal(signal.SIGWINCH, self.mux.on_winch)
-        old = termios.tcgetattr(self.mux.stdin_fd)
-        tty.setraw(self.mux.stdin_fd)
         rest = b""
-
         try:
             while True:
                 fds = [self.mux.stdin_fd, self.mux.shell_master]
@@ -248,7 +238,6 @@ class ShellWrapper:
             if self.su.summary_thread is not None:
                 self.su.summary_thread.join(timeout=1)
 
-            termios.tcsetattr(self.mux.stdin_fd, termios.TCSADRAIN, old)
             self.vc.voice.stop()
 
             if self.mux:

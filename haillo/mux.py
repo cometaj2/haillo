@@ -6,6 +6,7 @@ import time
 import fcntl
 import termios
 import struct
+import tty
 
 from typing import Optional
 
@@ -21,7 +22,7 @@ class MuxApp:
         self.stdout_fd = sys.stdout.fileno()
         if not os.isatty(self.stdin_fd):
             sys.stderr.write("pty_mux: stdin is not a tty\n")
-            exti(1)
+            exit(1)
 
         shell = os.environ.get("SHELL", "/bin/bash")
         shell_pid, shell_master = pty.fork()
@@ -29,6 +30,15 @@ class MuxApp:
             os.execvp(shell, [shell, "-l"])
         self.shell_pid = shell_pid
         self.shell_master = shell_master
+
+        try:
+            self.set_winsize(self.shell_master, self.winsize(self.stdin_fd))
+        except OSError:
+            pass
+
+        signal.signal(signal.SIGWINCH, self.on_winch)
+        self.old = termios.tcgetattr(self.stdin_fd)
+        tty.setraw(self.stdin_fd)
 
     def _announce(self, line: bytes) -> None:
         try:
@@ -46,6 +56,7 @@ class MuxApp:
         self._announce(b"haillo pty mux on")
 
     def stop(self, announce: bool = False) -> None:
+        termios.tcsetattr(self.stdin_fd, termios.TCSADRAIN, self.old)
         was_active = self.active
         self.active = False
         if announce and was_active:
