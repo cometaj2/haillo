@@ -91,7 +91,7 @@ class MuxApp:
         except OSError:
             return None
 
-    def at_shell_prompt(self) -> bool:
+    def shell_owns_tty(self) -> bool:
         pgrp = self.fg_pgrp(self.shell_master)
         return pgrp is not None and pgrp == self.shell_pid
 

@@ -37,7 +37,7 @@ class ShellWrapper:
 
         self.leader_buffer: Optional[bytes] = None
 
-        self.LEADER_PY: dict[bytes, Callable[[], None]] = {
+        self.LEADER_PY_COMMANDS: dict[bytes, Callable[[], None]] = {
             b"i": self.ag.proposed_commands,
             b"g": self.ag.run_task_to_completion,
             b"v": self.vc.toggle_voice,
@@ -47,7 +47,7 @@ class ShellWrapper:
         }
 
     def leader_keys(self) -> set[bytes]:
-        return set(c.LEADER_BASH_COMMANDS) | set(self.LEADER_PY)
+        return set(c.LEADER_BASH_COMMANDS) | set(self.LEADER_PY_COMMANDS)
 
     def leader_is_prefix(self, value: bytes) -> bool:
         return any(
@@ -56,7 +56,7 @@ class ShellWrapper:
         )
 
     def execute_leader(self, value: bytes) -> None:
-        py = self.LEADER_PY.get(value)
+        py = self.LEADER_PY_COMMANDS.get(value)
         if py is not None:
             try:
                 py()
@@ -177,7 +177,7 @@ class ShellWrapper:
                                 os.write(self.mux.shell_master, pre)
                             except OSError:
                                 pass
-                        if self.mux.at_shell_prompt():
+                        if self.mux.shell_owns_tty():
                             if self.mux.active:
                                 self.mux.stop(announce=True)
                             else:
@@ -190,7 +190,7 @@ class ShellWrapper:
                         rest = post
                         continue
 
-                    if self.mux.active and self.mux.at_shell_prompt():
+                    if self.mux.active and self.mux.shell_owns_tty():
                         data = self.handle_leader(data)
                     else:
                         self.flush_leader()
