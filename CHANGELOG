@@ -12,6 +12,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 - Add support for pcm streaming from hcli hai voice with local playback and audio ducking
 - Fix the voice termination logic to make it more robust
 - Remove useless voice spawn stub code
+- Removem support for python 3.10
 
 ## [1.0.0]
 - Add seamless turning on and off of pty mux with global leader (ctrl+space)
