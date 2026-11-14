@@ -30,6 +30,7 @@ LEADER_BASH_COMMANDS = {
         b"-not -path \"./node_modules/*\" "
         b"-not -path \"./.venv/*\" "
         b"-not -path \"./venv/*\" "
+        b"-not -path \"./.pytest_cache/*\" "
         b"-not -path \"./dist/*\" "
         b"-not -path \"./build/*\" "
         b"-not -path \"./target/*\" "
