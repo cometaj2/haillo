@@ -23,6 +23,31 @@ LEADER_BASH_COMMANDS = {
         b"fzf --prompt='skill> ' | awk '{print $1}' | "
         b"xargs -r hai agent skill set\n"
     ),
+    b"f": (
+        b"bash -c 'set -euo pipefail; "
+        b"mapfile -t files < <(find . -type f "
+        b"-not -path \"./.git/*\" "
+        b"-not -path \"./node_modules/*\" "
+        b"-not -path \"./.venv/*\" "
+        b"-not -path \"./venv/*\" "
+        b"-not -path \"./dist/*\" "
+        b"-not -path \"./build/*\" "
+        b"-not -path \"./target/*\" "
+        b"-not -path \"*/__pycache__/*\" "
+        b"-not -name \".env\" "
+        b"-not -name \"*.pem\" "
+        b"-not -name \"*.key\" | "
+        b"sed \"s#^./##\" | "
+        b"fzf --multi --prompt=\"Select files: \"); "
+        b"echo; "
+        b"((${#files[@]})) || exit 0; "
+        b"for file in \"${files[@]}\"; do "
+        b"printf \"Adding %s ... \" \"$file\"; "
+        b"hai agent artifact in \"$file\" < \"$file\"; "
+        b"done; "
+        b"echo; "
+        b"hai agent artifact in ls'\n"
+    ),
     b"s": b"hai context\n",
     b"sl": (
         b"tmp=$(mktemp); "

@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 - Add ,sl secondary leader to show the beginning of the last assistant message
 - Add ,sl secondary leader to show the beginning of the last assistant message
 - Add support for pcm streaming from hcli hai voice with local playback and audio ducking
+- Add ,f to support file selection and upload to the agent's artifact store
 - Fix the voice termination logic to make it more robust
 - Remove useless voice spawn stub code
 - Removem support for python 3.10
