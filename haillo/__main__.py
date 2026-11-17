@@ -7,7 +7,7 @@ from . import package
 from . import config
 from . import hutils
 from . import haillo
-
+from .voice import voice as v
 
 # prototype generator to identify generators as a type
 def generator():
@@ -66,7 +66,7 @@ def main():
                     elif dest == 'stderr' and stderr_bytes_written > 0:
                         eprint('\n')
             else:
-                error = "hcli_core: unexpected non-generator type."
+                error = "haillo: unexpected non-generator type."
                 eprint(error)
                 if not no_newline:
                     eprint('\n')
